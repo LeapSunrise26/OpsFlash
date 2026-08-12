@@ -19,7 +19,7 @@ OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工�
 
 | 层 | 技术 |
 |----|------|
-| 桌面框架 | [Wails v3](https://wails.io/)（v3.0.0-beta.4） |
+| 桌面框架 | [Wails v3](https://v3.wails.io/)（v3.0.0-beta.4） |
 | 后端语言 | Go 1.25 |
 | 前端 | Vue 3 + TypeScript + Vite 8 |
 | SSH | golang.org/x/crypto/ssh（纯 Go，无 CGO） |
@@ -107,5 +107,5 @@ task build:server   # 或 task run:server
 
 ## 反馈与贡献
 
-- 提 Issue / PR 前请先阅读 [CONTRIBUTING](./CONTRIBUTING.md)
+- 欢迎提 Issue / PR
 - 安全漏洞请私信或邮件至维护者，勿直接公开
