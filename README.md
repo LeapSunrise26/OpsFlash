@@ -8,6 +8,11 @@ OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工�
 
 > 当前版本：v0.1.0 · License：MIT
 
+## 仓库地址
+
+- GitHub：<https://github.com/LeapSunrise26/OpsFlash>
+- Gitee：<https://gitee.com/LeapSunrise/OpsFlash>
+
 ## 特性
 
 - **用户与认证**：登录 / 登出，Token 会话（24h 过期），密码 bcrypt 哈希，用户管理（创建/修改/删除/角色）
