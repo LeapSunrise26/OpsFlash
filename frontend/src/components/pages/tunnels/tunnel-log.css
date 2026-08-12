@@ -1,0 +1,165 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-box {
+  background: #141824;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 100px);
+}
+
+.modal-box-sm { width: 400px; }
+.modal-box-md { width: 520px; }
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f4f6fb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title-warning .warning-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.2);
+  color: #FBBF24;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.modal-close:hover { color: #f4f6fb; }
+
+.modal-body {
+  padding: 12px 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+.btn-cancel,
+.btn-primary,
+.btn-danger,
+.btn-secondary {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.btn-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #9aa6c0;
+}
+
+.btn-cancel:hover { background: rgba(255, 255, 255, 0.1); color: #f4f6fb; }
+/* ==================== 隧道日志面板 ==================== */
+.tunnel-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  max-height: 380px;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 12px;
+}
+
+.tunnel-log-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  line-height: 1.5;
+}
+
+.tunnel-log-item:last-child {
+  border-bottom: none;
+}
+
+.tunnel-log-time {
+  color: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.tunnel-log-level {
+  width: 44px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.tunnel-log-info { color: #60A5FA; }
+.tunnel-log-warn { color: #FBBF24; }
+.tunnel-log-error { color: #EF4444; }
+
+.tunnel-log-msg {
+  color: rgba(244, 246, 251, 0.85);
+  word-break: break-all;
+}
+
+.tunnel-log-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: rgba(154, 166, 192, 0.6);
+}
+
+.tunnel-log-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: rgba(154, 166, 192, 0.6);
+}

@@ -1,0 +1,308 @@
+.tunnel-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.tunnel-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.tunnel-card-running {
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.tunnel-card-running:hover {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.tunnel-card-error {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* 卡片头部 */
+.tunnel-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tunnel-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tunnel-status-running {
+  background: #34D399;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+}
+
+.tunnel-status-stopped {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tunnel-status-error {
+  background: #EF4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+.tunnel-status-reconnecting {
+  background: #FBBF24;
+  animation: tunnel-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tunnel-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.tunnel-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f4f6fb;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tunnel-type-badge {
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(96, 165, 250, 0.12);
+  color: #60A5FA;
+  flex-shrink: 0;
+}
+
+/* SSH 连接信息 */
+.tunnel-ssh {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* 转发规则可视化（紧凑） */
+.tunnel-forward {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tunnel-forward-local,
+.tunnel-forward-remote {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tunnel-forward-label {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tunnel-forward-addr {
+  font-size: 11.5px;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  color: #f4f6fb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tunnel-forward-arrow {
+  color: rgba(52, 211, 153, 0.6);
+  flex-shrink: 0;
+}
+
+.tunnel-card-running .tunnel-forward-arrow {
+  color: #34D399;
+}
+
+/* 状态 + 标签 + 流量 一行 */
+.tunnel-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tunnel-status-text {
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.tunnel-status-text.tunnel-status-running { color: #34D399; }
+.tunnel-status-text.tunnel-status-stopped { color: rgba(255, 255, 255, 0.4); }
+.tunnel-status-text.tunnel-status-error { color: #EF4444; }
+.tunnel-status-text.tunnel-status-reconnecting { color: #FBBF24; }
+
+.tunnel-error-msg {
+  font-size: 11px;
+  color: #EF4444;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+/* 运行中的警告（远程目标不可达等，非致命错误） */
+.tunnel-warn-msg {
+  color: #FBBF24;
+}
+
+/* 标签组（左：分组/自动/重连） */
+.tunnel-meta-tags {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tunnel-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tunnel-tag-group {
+  background: rgba(167, 139, 250, 0.14);
+  color: #A78BFA;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tunnel-tag-auto {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60A5FA;
+  flex-shrink: 0;
+}
+
+.tunnel-tag-reconn {
+  background: rgba(251, 191, 36, 0.1);
+  color: #FBBF24;
+  flex-shrink: 0;
+}
+
+.tunnel-remark {
+  margin: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 操作按钮 */
+.tunnel-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.tunnel-toggle-btn {
+  padding: 5px 16px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tunnel-toggle-start {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #34D399;
+}
+
+.tunnel-toggle-start:hover {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: rgba(52, 211, 153, 0.55);
+}
+
+.tunnel-toggle-stop {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #EF4444;
+}
+
+.tunnel-toggle-stop:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.tunnel-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.tunnel-action-btn + .tunnel-action-btn { margin-left: 0; }
+
+.tunnel-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tunnel-action-danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #EF4444;
+}
+
+/* 空状态 */
+/* ==================== 流量统计（meta 行内，右对齐） ==================== */
+.tunnel-traffic {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  color: rgba(255, 255, 255, 0.45);
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-left: auto; /* 推到最右 */
+}
+
+.tunnel-card-running .tunnel-traffic {
+  color: rgba(52, 211, 153, 0.75);
+}
+

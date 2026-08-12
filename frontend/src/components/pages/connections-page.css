@@ -1,0 +1,673 @@
+/* ==================== 连接管理页面样式（暗色玻璃态，与 ops-page 一致） ==================== */
+
+.conn-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 56px - 80px);
+  min-height: 480px;
+  color: var(--text);
+  user-select: none;
+  -webkit-user-select: none;
+  --wails-draggable: no-drag;
+}
+
+/* ==================== 顶部工具栏 ==================== */
+.conn-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 0 2px 14px;
+}
+
+.conn-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conn-tab {
+  padding: 7px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.conn-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.conn-tab-active {
+  background: rgba(255, 45, 114, 0.15);
+  border-color: rgba(255, 45, 114, 0.5);
+  color: #FF77B0;
+  font-weight: 600;
+}
+
+.conn-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.conn-stats {
+  font-size: 12px;
+  color: #9aa6c0;
+  white-space: nowrap;
+}
+
+.conn-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #FF006E, #FF2D72);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.conn-add-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.conn-add-plus {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* ==================== 测试结果提示条 ==================== */
+.conn-test-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.conn-test-ok {
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: #34D399;
+}
+
+.conn-test-fail {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #EF4444;
+}
+
+.conn-test-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* ==================== 卡片网格 ==================== */
+.conn-grid {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  align-content: start;
+  padding: 2px 2px 8px;
+}
+
+.conn-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.conn-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+/* 类型边框微光 */
+.conn-card-ssh:hover { border-color: rgba(96, 165, 250, 0.4); }
+.conn-card-redis:hover { border-color: rgba(239, 68, 68, 0.4); }
+.conn-card-mysql:hover { border-color: rgba(251, 191, 36, 0.4); }
+.conn-card-tdengine:hover { border-color: rgba(167, 139, 250, 0.4); }
+
+.conn-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.conn-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f4f6fb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 类型徽章 */
+.conn-type-badge {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.conn-badge-ssh { background: rgba(96, 165, 250, 0.15); color: #60A5FA; }
+.conn-badge-redis { background: rgba(239, 68, 68, 0.15); color: #EF4444; }
+.conn-badge-mysql { background: rgba(251, 191, 36, 0.15); color: #FBBF24; }
+.conn-badge-tdengine { background: rgba(167, 139, 250, 0.15); color: #A78BFA; }
+
+.conn-addr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 12.5px;
+  color: #9aa6c0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conn-addr svg { flex-shrink: 0; }
+
+.conn-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conn-auth {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #9aa6c0;
+  font-size: 11.5px;
+}
+
+.conn-auth-muted {
+  font-size: 11.5px;
+  color: rgba(154, 166, 192, 0.5);
+}
+
+/* 隧道关联徽标 */
+.conn-tunnel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(96, 165, 250, 0.1);
+  color: #60A5FA;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.conn-remark {
+  margin: 0;
+  font-size: 12px;
+  color: #9aa6c0;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.conn-card-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.conn-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conn-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #9aa6c0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.conn-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4f6fb;
+}
+
+.conn-action-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #EF4444;
+}
+
+/* ==================== 空状态 / 加载 ==================== */
+.conn-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 0;
+  color: rgba(154, 166, 192, 0.6);
+}
+
+.conn-empty-icon svg { color: rgba(154, 166, 192, 0.35); }
+
+.conn-empty-text {
+  font-size: 13px;
+  color: #9aa6c0;
+}
+
+.conn-loading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 0;
+  color: #9aa6c0;
+  font-size: 13px;
+}
+
+.conn-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 45, 114, 0.2);
+  border-top-color: #FF2D72;
+  border-radius: 50%;
+  animation: conn-spin 0.8s linear infinite;
+}
+
+@keyframes conn-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==================== 弹窗表单（与 ops-page 一致的通用样式） ==================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-box {
+  background: #141824;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 100px);
+}
+
+.modal-box-sm { width: 400px; }
+.modal-box-md { width: 520px; }
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f4f6fb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title-warning .warning-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.2);
+  color: #FBBF24;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.modal-close:hover { color: #f4f6fb; }
+
+.modal-body {
+  padding: 12px 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.form-group {
+  margin-bottom: 8px;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.form-group-flex { flex: 1; }
+.form-group-port { width: 100px; flex-shrink: 0; }
+
+.form-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #9aa6c0;
+}
+
+.required { color: #FF2D72; }
+
+.form-hint-inline {
+  font-size: 11px;
+  color: rgba(154, 166, 192, 0.6);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #f4f6fb;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  border-color: rgba(255, 45, 114, 0.6);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: rgba(154, 166, 192, 0.5);
+}
+
+.form-textarea {
+  resize: vertical;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 12px;
+}
+
+.form-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #EF4444;
+}
+
+.form-test-result {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 12.5px;
+}
+
+.form-test-ok {
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: #34D399;
+}
+
+.form-test-fail {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #EF4444;
+}
+
+/* 按钮 */
+.btn-cancel,
+.btn-primary,
+.btn-danger,
+.btn-secondary {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.btn-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #9aa6c0;
+}
+
+.btn-cancel:hover { background: rgba(255, 255, 255, 0.1); color: #f4f6fb; }
+
+.btn-secondary {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #60A5FA;
+}
+
+.btn-secondary:hover { background: rgba(96, 165, 250, 0.25); }
+
+.btn-primary {
+  background: linear-gradient(135deg, #FF006E, #FF2D72);
+  color: #fff;
+}
+
+.btn-primary:hover { filter: brightness(1.15); }
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #EF4444;
+}
+
+.btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+
+.btn-cancel:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 类型选择器（弹窗内） */
+.conn-type-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.conn-type-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #9aa6c0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.conn-type-option:hover { background: rgba(255, 255, 255, 0.07); }
+
+.conn-type-option-active {
+  background: rgba(255, 45, 114, 0.12);
+  border-color: rgba(255, 45, 114, 0.5);
+  color: #FF77B0;
+  font-weight: 600;
+}
+
+.conn-type-radio {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.conn-type-radio:checked {
+  border-color: #FF2D72;
+}
+
+.conn-type-radio:checked::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: #FF2D72;
+}
+
+/* 认证方式选择器 */
+.conn-auth-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.conn-auth-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #9aa6c0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.conn-auth-option:hover { background: rgba(255, 255, 255, 0.07); }
+
+.conn-auth-option-active {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.5);
+  color: #60A5FA;
+  font-weight: 600;
+}
+
+/* 确认弹窗 */
+.confirm-text {
+  margin: 6px 0 12px;
+  font-size: 14px;
+  color: #f4f6fb;
+}
+
+.confirm-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  font-size: 12.5px;
+  color: #FBBF24;
+  line-height: 1.5;
+}
+
+.warning-icon-small {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.2);
+  font-size: 11px;
+  font-weight: 700;
+}
