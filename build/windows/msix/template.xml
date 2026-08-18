@@ -8,15 +8,15 @@
         AllowPromptForPassword="false">
     </Settings>
     <Installer
-        Path="myapp.exe"
+        Path="opsflash.exe"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\LeapSunrise\OpsFlash">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
+        PackageName="OpsFlash"
+        PackageDisplayName="OpsFlash"
+        PublisherName="CN=LeapSunrise"
+        PublisherDisplayName="LeapSunrise"
         Version="0.1.0.0"
         PackageDescription="OpsFlash">
         <Capabilities>
@@ -25,10 +25,10 @@
         </Capabilities>
         <Applications>
             <Application
-                Id="com.leesun.myapp"
+                Id="com.leesun.opsflash"
                 Description="OpsFlash"
-                DisplayName="My Product"
-                ExecutableName="myapp.exe"
+                DisplayName="OpsFlash"
+                ExecutableName="opsflash.exe"
                 EntryPoint="Windows.FullTrustApplication">
                 
             </Application>
@@ -41,13 +41,13 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
+            <DisplayName>OpsFlash</DisplayName>
+            <PublisherDisplayName>LeapSunrise</PublisherDisplayName>
             <Description>OpsFlash</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>
-    <SaveLocation PackagePath="myapp.msix" />
+    <SaveLocation PackagePath="opsflash.msix" />
     <PackageIntegrity>
         <CertificatePath></CertificatePath>
     </PackageIntegrity>

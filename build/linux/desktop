@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=My Product
+Name=OpsFlash
 Comment=OpsFlash
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/myapp.exe %u
+Exec=/usr/local/bin/opsflash.exe %u
 Terminal=false
 Type=Application
-Icon=myapp.exe
+Icon=opsflash.exe
 Categories=Utility;
-StartupWMClass=myapp.exe
+StartupWMClass=opsflash.exe
 
  

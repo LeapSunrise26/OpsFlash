@@ -91,12 +91,50 @@ func InitDB() error {
 			FOREIGN KEY (connection_id) REFERENCES connections(id)
 		);
 		CREATE INDEX IF NOT EXISTS idx_tunnels_connection ON tunnels(connection_id);
+		CREATE TABLE IF NOT EXISTS environments (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			env_key TEXT NOT NULL UNIQUE,
+			sort_order INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+		CREATE TABLE IF NOT EXISTS scripts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			type TEXT NOT NULL,
+			environment_id INTEGER NOT NULL DEFAULT 0,
+			remark TEXT NOT NULL DEFAULT '',
+			ts INTEGER NOT NULL
+		);
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_scripts_env_name ON scripts(environment_id, name);
 	`)
 	if err != nil {
 		slog.Error("创建数据库表失败", "error", err)
 		return fmt.Errorf("创建表失败: %w", err)
 	}
 	slog.Info("数据库表初始化完成")
+
+	// 如果 environments 表为空，插入默认环境（开发/测试/生产，带英文 key）
+	var envCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM environments").Scan(&envCount); err != nil {
+		slog.Error("查询环境数量失败", "error", err)
+		return fmt.Errorf("查询环境失败: %w", err)
+	}
+	if envCount == 0 {
+		slog.Info("未检测到环境数据，创建默认环境")
+		if _, err := db.Exec(`
+			INSERT INTO environments (name, env_key, sort_order) VALUES ('开发环境', 'dev', 100);
+			INSERT INTO environments (name, env_key, sort_order) VALUES ('测试环境', 'test', 101);
+			INSERT INTO environments (name, env_key, sort_order) VALUES ('生产环境', 'prod', 102);
+		`); err != nil {
+			slog.Error("创建默认环境失败", "error", err)
+			return fmt.Errorf("创建默认环境失败: %w", err)
+		}
+		slog.Info("默认环境创建成功")
+	} else {
+		slog.Info("已有环境数据", "count", envCount)
+	}
 
 	// 检查是否已有用户，若无则插入默认管理员账号
 	var count int

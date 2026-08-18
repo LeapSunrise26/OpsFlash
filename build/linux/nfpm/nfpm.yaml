@@ -3,7 +3,7 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "myapp.exe"
+name: "opsflash.exe"
 arch: ${GOARCH}
 platform: "linux"
 version: "0.1.0"
@@ -11,18 +11,18 @@ section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
 description: "OpsFlash"
-vendor: "My Company"
+vendor: "LeapSunrise"
 homepage: "https://wails.io"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/myapp.exe"
-    dst: "/usr/local/bin/myapp.exe"
+  - src: "./bin/opsflash.exe"
+    dst: "/usr/local/bin/opsflash.exe"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/myapp.exe.png"
-  - src: "./build/linux/myapp.exe.desktop"
-    dst: "/usr/share/applications/myapp.exe.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/opsflash.exe.png"
+  - src: "./build/linux/opsflash.exe.desktop"
+    dst: "/usr/share/applications/opsflash.exe.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

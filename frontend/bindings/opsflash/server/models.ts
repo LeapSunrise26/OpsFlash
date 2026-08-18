@@ -93,6 +93,13 @@ export interface CreateConnectionRequest {
     "remark": string;
 }
 
+export interface CreateEnvironmentRequest {
+    "token": string;
+    "name": string;
+    "key": string;
+    "sortOrder": number;
+}
+
 /**
  * CreateTunnelItem 批量创建中的单条隧道配置
  */
@@ -182,6 +189,27 @@ export interface DeleteConnectionResponse {
     "refCount": number;
 }
 
+export interface DeleteEnvResponse {
+    "success": boolean;
+    "message": string;
+    "deletedCount": number;
+}
+
+export interface DeleteEnvironmentRequest {
+    "token": string;
+    "id": number;
+
+    /**
+     * 删除时脚本迁移目标环境（不能等于自身；至少保留一个环境）
+     */
+    "targetId": number;
+}
+
+export interface DeleteScriptRequest {
+    "token": string;
+    "id": number;
+}
+
 export interface DeleteTunnelRequest {
     "token": string;
     "id": number;
@@ -199,6 +227,27 @@ export interface DeleteTunnelResponse {
 export interface DeleteUserRequest {
     "token": string;
     "id": number;
+}
+
+/**
+ * Environment 环境信息
+ */
+export interface Environment {
+    "id": number;
+    "name": string;
+
+    /**
+     * 英文 key，作脚本磁盘子目录名 data/scripts/{key}/
+     */
+    "key": string;
+    "sortOrder": number;
+    "createdAt": string;
+}
+
+export interface EnvironmentsResponse {
+    "success": boolean;
+    "environments": Environment[] | null;
+    "message": string;
 }
 
 /**
@@ -227,6 +276,10 @@ export interface GetConnectionsRequest {
      * 可空，筛选类型
      */
     "type": string;
+}
+
+export interface GetEnvironmentsRequest {
+    "token": string;
 }
 
 /**
@@ -268,6 +321,14 @@ export interface ImportTunnelsResponse {
 }
 
 /**
+ * 请求/响应类型
+ */
+export interface ListScriptsRequest {
+    "token": string;
+    "environmentId": number;
+}
+
+/**
  * LoginRequest 登录请求
  */
 export interface LoginRequest {
@@ -300,10 +361,103 @@ export interface LogoutResponse {
     "message": string;
 }
 
+export interface ReadScriptRequest {
+    "token": string;
+    "id": number;
+}
+
+export interface RunScriptRequest {
+    "token": string;
+    "id": number;
+    "args": string;
+}
+
+export interface SaveScriptRequest {
+    "token": string;
+
+    /**
+     * 0=新建
+     */
+    "id": number;
+    "name": string;
+    "type": string;
+    "content": string;
+    "environmentId": number;
+    "remark": string;
+}
+
+/**
+ * Script 脚本信息
+ */
+export interface Script {
+    "id": number;
+
+    /**
+     * 脚本名（不含扩展名，同环境唯一）
+     */
+    "name": string;
+
+    /**
+     * bat | ps1 | sh
+     */
+    "type": string;
+    "environmentId": number;
+
+    /**
+     * 所属环境 key（磁盘子目录名 data/scripts/{envKey}/）
+     */
+    "envKey": string;
+    "remark": string;
+
+    /**
+     * 修改时间（unix 秒）
+     */
+    "ts": number;
+    "size": number;
+}
+
+export interface ScriptContentResponse {
+    "success": boolean;
+    "name": string;
+    "type": string;
+    "content": string;
+    "message": string;
+}
+
+export interface ScriptResponse {
+    "success": boolean;
+    "script": Script | null;
+    "message": string;
+}
+
+/**
+ * ScriptRunProgress 脚本执行进度（前端轮询）
+ */
+export interface ScriptRunProgress {
+    "success": boolean;
+    "done": boolean;
+    "output": string;
+    "exitError": string;
+    "exitCode": number;
+    "durationMs": number;
+    "message": string;
+}
+
+export interface ScriptsResponse {
+    "success": boolean;
+    "scripts": Script[] | null;
+    "message": string;
+}
+
 /**
  * 请求/响应类型
  */
 export interface StartTunnelRequest {
+    "token": string;
+    "id": number;
+}
+
+export interface StopScriptRunRequest {
     "token": string;
     "id": number;
 }
@@ -472,6 +626,14 @@ export interface UpdateConnectionRequest {
     "privateKeyPath": string;
     "passphrase": string;
     "remark": string;
+}
+
+export interface UpdateEnvironmentRequest {
+    "token": string;
+    "id": number;
+    "name": string;
+    "key": string;
+    "sortOrder": number;
 }
 
 export interface UpdateTunnelRequest {

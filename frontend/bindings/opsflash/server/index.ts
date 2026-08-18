@@ -4,12 +4,14 @@
 import * as AuthService from "./authservice.js";
 import * as ConnService from "./connservice.js";
 import * as GreetService from "./greetservice.js";
+import * as ScriptsService from "./scriptsservice.js";
 import * as TunnelService from "./tunnelservice.js";
 import * as UserService from "./userservice.js";
 export {
     AuthService,
     ConnService,
     GreetService,
+    ScriptsService,
     TunnelService,
     UserService
 };
@@ -20,6 +22,7 @@ export type {
     ConnectionResponse,
     ConnectionsResponse,
     CreateConnectionRequest,
+    CreateEnvironmentRequest,
     CreateTunnelItem,
     CreateTunnelRequest,
     CreateTunnelsRequest,
@@ -27,21 +30,37 @@ export type {
     CreateUserRequest,
     DeleteConnectionRequest,
     DeleteConnectionResponse,
+    DeleteEnvResponse,
+    DeleteEnvironmentRequest,
+    DeleteScriptRequest,
     DeleteTunnelRequest,
     DeleteTunnelResponse,
     DeleteUserRequest,
+    Environment,
+    EnvironmentsResponse,
     ExportTunnelsRequest,
     ExportTunnelsResponse,
     GetConnectionsRequest,
+    GetEnvironmentsRequest,
     GetTunnelLogsRequest,
     GetTunnelsRequest,
     ImportTunnelsRequest,
     ImportTunnelsResponse,
+    ListScriptsRequest,
     LoginRequest,
     LoginResponse,
     LogoutRequest,
     LogoutResponse,
+    ReadScriptRequest,
+    RunScriptRequest,
+    SaveScriptRequest,
+    Script,
+    ScriptContentResponse,
+    ScriptResponse,
+    ScriptRunProgress,
+    ScriptsResponse,
     StartTunnelRequest,
+    StopScriptRunRequest,
     StopTunnelRequest,
     TestConnectionConfigRequest,
     TestConnectionRequest,
@@ -57,6 +76,7 @@ export type {
     TunnelSummaryResponse,
     TunnelsResponse,
     UpdateConnectionRequest,
+    UpdateEnvironmentRequest,
     UpdateTunnelRequest,
     UpdateUserRequest,
     User,

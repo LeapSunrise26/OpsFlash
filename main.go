@@ -69,6 +69,7 @@ func main() {
 			application.NewService(&server.UserService{}),
 			application.NewService(&server.ConnService{}),
 			application.NewService(&server.TunnelService{}),
+			application.NewService(&server.ScriptsService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

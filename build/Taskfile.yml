@@ -280,7 +280,7 @@ tasks:
       Defaults to a pure-Go static binary on a distroless/static base. The
       production frontend is built first so the embedded assets are current.
 
-      Usage: task build:docker [TAG=myapp:latest] [CGO_ENABLED=1] [GO_IMAGE=...] [RUNTIME_IMAGE=...]
+      Usage: task build:docker [TAG=opsflash:latest] [CGO_ENABLED=1] [GO_IMAGE=...] [RUNTIME_IMAGE=...]
       For CGO apps, set CGO_ENABLED=1 with libc-compatible builder/runtime images, e.g.:
         task build:docker CGO_ENABLED=1 GO_IMAGE=golang:bookworm RUNTIME_IMAGE=gcr.io/distroless/base-debian12
     deps:
@@ -311,7 +311,7 @@ tasks:
     summary: Builds and runs the Docker image
     desc: |
       Builds the Docker image and runs it, exposing port 8080.
-      Usage: task run:docker [TAG=myapp:latest] [PORT=8080]
+      Usage: task run:docker [TAG=opsflash:latest] [PORT=8080]
       Note: The internal container port is always 8080. The PORT variable
       only changes the host port mapping. Ensure your app uses port 8080
       or modify the Dockerfile to match your ServerOptions.Port setting.
@@ -337,62 +337,3 @@ tasks:
       - sh: docker info > /dev/null 2>&1
         msg: "Docker is required. Please install Docker first."
 
-  ios:device:list:
-    summary: Lists connected iOS devices (UDIDs)
-    cmds:
-      - xcrun xcdevice list
-
-  ios:run:device:
-    summary: Build, install, and launch on a physical iPhone using Apple tools (xcodebuild/devicectl)
-    vars:
-      PROJECT: '{{.PROJECT}}'   # e.g., build/ios/xcode/<YourProject>.xcodeproj
-      SCHEME: '{{.SCHEME}}'     # e.g., ios.dev
-      CONFIG: '{{.CONFIG | default "Debug"}}'
-      DERIVED: '{{.DERIVED | default "build/ios/DerivedData"}}'
-      UDID: '{{.UDID}}'         # from `task ios:device:list`
-      BUNDLE_ID: '{{.BUNDLE_ID}}' # e.g., com.yourco.wails.ios.dev
-      TEAM_ID: '{{.TEAM_ID}}'   # optional, if your project is not already set up for signing
-    preconditions:
-      - sh: xcrun -f xcodebuild
-        msg: "xcodebuild not found. Please install Xcode."
-      - sh: xcrun -f devicectl
-        msg: "devicectl not found. Please update to Xcode 15+ (which includes devicectl)."
-      - sh: test -n '{{.PROJECT}}'
-        msg: "Set PROJECT to your .xcodeproj path (e.g., PROJECT=build/ios/xcode/App.xcodeproj)."
-      - sh: test -n '{{.SCHEME}}'
-        msg: "Set SCHEME to your app scheme (e.g., SCHEME=ios.dev)."
-      - sh: test -n '{{.UDID}}'
-        msg: "Set UDID to your device UDID (see: task ios:device:list)."
-      - sh: test -n '{{.BUNDLE_ID}}'
-        msg: "Set BUNDLE_ID to your app's bundle identifier (e.g., com.yourco.wails.ios.dev)."
-    cmds:
-      - |
-        set -euo pipefail
-        echo "Building for device: UDID={{.UDID}} SCHEME={{.SCHEME}} PROJECT={{.PROJECT}}"
-        XCB_ARGS=(
-          -project "{{.PROJECT}}"
-          -scheme "{{.SCHEME}}"
-          -configuration "{{.CONFIG}}"
-          -destination "id={{.UDID}}"
-          -derivedDataPath "{{.DERIVED}}"
-          -allowProvisioningUpdates
-          -allowProvisioningDeviceRegistration
-        )
-        # Optionally inject signing identifiers if provided
-        if [ -n '{{.TEAM_ID}}' ]; then XCB_ARGS+=(DEVELOPMENT_TEAM={{.TEAM_ID}}); fi
-        if [ -n '{{.BUNDLE_ID}}' ]; then XCB_ARGS+=(PRODUCT_BUNDLE_IDENTIFIER={{.BUNDLE_ID}}); fi
-        xcodebuild "${XCB_ARGS[@]}" build | xcpretty || true
-        # If xcpretty isn't installed, run without it
-        if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-          xcodebuild "${XCB_ARGS[@]}" build
-        fi
-        # Find built .app
-        APP_PATH=$(find "{{.DERIVED}}/Build/Products" -type d -name "*.app" -maxdepth 3 | head -n 1)
-        if [ -z "$APP_PATH" ]; then
-          echo "Could not locate built .app under {{.DERIVED}}/Build/Products" >&2
-          exit 1
-        fi
-        echo "Installing: $APP_PATH"
-        xcrun devicectl device install app --device "{{.UDID}}" "$APP_PATH"
-        echo "Launching: {{.BUNDLE_ID}}"
-        xcrun devicectl device process launch --device "{{.UDID}}" --stderr console --stdout console "{{.BUNDLE_ID}}"

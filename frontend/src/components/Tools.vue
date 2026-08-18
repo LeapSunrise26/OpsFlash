@@ -5,6 +5,8 @@ import HomePage from './pages/HomePage.vue'
 import UserPage from './pages/UserPage.vue'
 import ConnectionsPage from './pages/ConnectionsPage.vue'
 import TunnelPage from './pages/TunnelPage.vue'
+import ScriptsPage from './pages/ScriptsPage.vue'
+import EnvironmentPage from './pages/EnvironmentPage.vue'
 
 const props = defineProps<{
   username: string
@@ -16,7 +18,7 @@ const emit = defineEmits<{
 }>()
 
 // --- 导航 ---
-type NavKey = 'home' | 'users' | 'connections' | 'tunnels'
+type NavKey = 'home' | 'users' | 'connections' | 'tunnels' | 'scripts' | 'env'
 const activeNav = ref<NavKey>('home')
 
 // 侧边栏收起/展开（默认收起；用户手动展开后记住状态）
@@ -44,7 +46,7 @@ function handleNavigate(key: NavKey, connectionId?: number) {
   activeNav.value = key
 }
 
-const pageTitle = computed(() => ({ home: '首页', users: '用户管理', connections: '连接管理', tunnels: '隧道管理' }[activeNav.value]))
+const pageTitle = computed(() => ({ home: '首页', users: '用户管理', connections: '连接管理', tunnels: '隧道管理', scripts: '脚本库', env: '环境管理' }[activeNav.value]))
 
 const currentPage = computed(() => {
   switch (activeNav.value) {
@@ -52,6 +54,8 @@ const currentPage = computed(() => {
     case 'users': return UserPage
     case 'connections': return ConnectionsPage
     case 'tunnels': return TunnelPage
+    case 'scripts': return ScriptsPage
+    case 'env': return EnvironmentPage
     default: return null
   }
 })
@@ -126,6 +130,14 @@ const tunnelActive = computed(() => tunnelSummary.value.running > 0)
         <a class="nav-item" :class="{ active: activeNav === 'tunnels' }" href="#" title="隧道管理" @click.prevent="openTunnelsPage()">
           <svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-9 4 18 3-9h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span v-show="!sidebarCollapsed">隧道管理</span>
+        </a>
+        <a class="nav-item" :class="{ active: activeNav === 'scripts' }" href="#" title="脚本库" @click.prevent="switchNav('scripts')">
+          <svg viewBox="0 0 24 24" fill="none"><polyline points="4 17 10 11 4 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="19" x2="20" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span v-show="!sidebarCollapsed">脚本库</span>
+        </a>
+        <a class="nav-item" :class="{ active: activeNav === 'env' }" href="#" title="环境管理" @click.prevent="switchNav('env')">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v3a2 2 0 010 4v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3a2 2 0 010-4V7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="12" r="1.5" fill="currentColor"/><circle cx="16" cy="12" r="1.5" fill="currentColor"/></svg>
+          <span v-show="!sidebarCollapsed">环境管理</span>
         </a>
         <a class="nav-item" :class="{ active: activeNav === 'users' }" href="#" title="用户管理" @click.prevent="switchNav('users')">
           <svg viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>

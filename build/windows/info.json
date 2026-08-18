@@ -5,10 +5,10 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
+			"CompanyName": "LeapSunrise",
 			"FileDescription": "OpsFlash",
-			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
+			"LegalCopyright": "© 2026, LeapSunrise",
+			"ProductName": "OpsFlash",
 			"Comments": "This is a comment"
 		}
 	}

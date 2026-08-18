@@ -1,16 +1,16 @@
 -- ============================================================================
--- OpsFlash v0.1.0 数据库结构文档 & 排查 SQL
+-- OpsFlash v0.2.0 数据库结构文档 & 排查 SQL
 -- 数据库：SQLite（modernc.org/sqlite 纯 Go 驱动）
 -- 位置：data/opsflash.db（应用工作目录下）
 -- 查看方式：sqlite3 data/opsflash.db  或任意 SQLite 客户端
--- 生成日期：2026-08-12
--- 范围：v0.1.0 精简版（认证 / 用户 / 连接 / 隧道，共 4 张表）
---       命令执行相关表（params / environments / commands / batch_*）将在后续版本引入
+-- 生成日期：2026-08-14
+-- 范围：v0.2.0（认证 / 用户 / 连接 / 隧道 / 脚本库，共 7 张表）
+--       新增：environments（环境）、scripts（脚本库）
 -- ============================================================================
 
 
 -- ============================================================================
--- 一、完整建表 DDL（v0.1.0 实际结构，新建库可直接执行）
+-- 一、完整建表 DDL（v0.2.0 实际结构，新建库可直接执行）
 -- ============================================================================
 
 -- 1. users 用户账号（默认 admin / 123456，密码 bcrypt 哈希）
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS connections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-    type TEXT NOT NULL DEFAULT 'ssh',                 -- ssh（v0.1.0 仅 SSH）
+    type TEXT NOT NULL DEFAULT 'ssh',                 -- ssh（v0.2.0 仅 SSH）
     host TEXT NOT NULL,
     port INTEGER NOT NULL DEFAULT 22,
     username TEXT DEFAULT '',
@@ -70,3 +70,24 @@ CREATE TABLE IF NOT EXISTS tunnels (
     FOREIGN KEY (connection_id) REFERENCES connections(id)
 );
 CREATE INDEX IF NOT EXISTS idx_tunnels_connection ON tunnels(connection_id);
+
+-- 5. environments 环境（脚本库 / 后续运维命令共用）
+CREATE TABLE IF NOT EXISTS environments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. scripts 脚本库
+--    文件平铺于 data/scripts/（bat/ps1/sh），元数据存此表，内容存磁盘
+CREATE TABLE IF NOT EXISTS scripts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,                               -- 脚本名（不含扩展名，同环境唯一）
+    type TEXT NOT NULL,                               -- bat | ps1 | sh
+    environment_id INTEGER NOT NULL DEFAULT 0,        -- 所属环境（0=通用）
+    remark TEXT NOT NULL DEFAULT '',
+    ts INTEGER NOT NULL                               -- 修改时间（unix 秒）
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_scripts_env_name ON scripts(environment_id, name);
