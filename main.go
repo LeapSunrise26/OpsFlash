@@ -19,7 +19,7 @@ import (
 
 const (
 	AppName = "OpsFlash"
-	Version = "0.1.0"
+	Version = "0.3.0"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
@@ -35,6 +35,7 @@ func init() {
 	// This is not required, but the binding generator will pick up registered events
 	// and provide a strongly typed JS/TS API for them.
 	application.RegisterEvent[string]("time")
+	application.RegisterEvent[server.TerminalOutputEvent]("pty:output")
 }
 
 // main function serves as the application's entry point. It initializes the application, creates a window,
@@ -60,6 +61,7 @@ func main() {
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running an macOS.
+	opsSvc := &server.OpsService{}
 	app := application.New(application.Options{
 		Name:        AppName,
 		Description: "OpsFlash 运维工具",
@@ -70,6 +72,7 @@ func main() {
 			application.NewService(&server.ConnService{}),
 			application.NewService(&server.TunnelService{}),
 			application.NewService(&server.ScriptsService{}),
+			application.NewService(opsSvc),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -111,8 +114,14 @@ func main() {
 		}
 	}()
 
+	// 注入终端输出事件发射器（xterm 事件流：交互/流式会话实时输出 → 前端）
+	opsSvc.SetEventEmitter(app.Event)
+
 	// Run the application. This blocks until the application has been exited.
 	err := app.Run()
+
+	// 停止所有运行中的守护进程、交互式会话与流式执行
+	opsSvc.Shutdown()
 
 	// 停止所有运行中的隧道
 	server.ShutdownTunnels()

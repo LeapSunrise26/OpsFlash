@@ -12,6 +12,16 @@ const emit = defineEmits<{
   <section class="section">
     <h3 class="section-title">快捷入口</h3>
     <div class="shortcut-row">
+      <div class="shortcut-card" @click="emit('navigate', 'ops')">
+        <div class="shortcut-icon shortcut-icon-blue">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="6" rx="2" stroke="currentColor" stroke-width="2"/><rect x="2" y="15" width="20" height="6" rx="2" stroke="currentColor" stroke-width="2"/><line x1="6" y1="6" x2="6.01" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="18" x2="6.01" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="shortcut-info">
+          <span class="shortcut-title">指令库</span>
+          <span class="shortcut-desc">命令管理、本地/SSH 执行与守护进程</span>
+        </div>
+        <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
       <div class="shortcut-card" @click="emit('navigate', 'connections')">
         <div class="shortcut-icon shortcut-icon-red">
           <svg viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -64,7 +74,7 @@ const emit = defineEmits<{
         </div>
         <div class="info-text">
           <span class="info-label">版本</span>
-          <span class="info-value">0.1.0</span>
+          <span class="info-value">0.3.0</span>
         </div>
       </div>
       <div class="info-item">

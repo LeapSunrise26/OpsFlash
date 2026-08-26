@@ -3,6 +3,7 @@ import { ref, computed, shallowRef, onMounted, onUnmounted } from 'vue'
 import { AuthService, TunnelService } from '../../bindings/opsflash/server'
 import HomePage from './pages/HomePage.vue'
 import UserPage from './pages/UserPage.vue'
+import OpsPage from './pages/OpsPage.vue'
 import ConnectionsPage from './pages/ConnectionsPage.vue'
 import TunnelPage from './pages/TunnelPage.vue'
 import ScriptsPage from './pages/ScriptsPage.vue'
@@ -18,7 +19,7 @@ const emit = defineEmits<{
 }>()
 
 // --- 导航 ---
-type NavKey = 'home' | 'users' | 'connections' | 'tunnels' | 'scripts' | 'env'
+type NavKey = 'home' | 'ops' | 'users' | 'connections' | 'tunnels' | 'scripts' | 'env'
 const activeNav = ref<NavKey>('home')
 
 // 侧边栏收起/展开（默认收起；用户手动展开后记住状态）
@@ -46,11 +47,12 @@ function handleNavigate(key: NavKey, connectionId?: number) {
   activeNav.value = key
 }
 
-const pageTitle = computed(() => ({ home: '首页', users: '用户管理', connections: '连接管理', tunnels: '隧道管理', scripts: '脚本库', env: '环境管理' }[activeNav.value]))
+const pageTitle = computed(() => ({ home: '首页', ops: '指令库', users: '用户管理', connections: '连接管理', tunnels: '隧道管理', scripts: '脚本库', env: '环境管理' }[activeNav.value]))
 
 const currentPage = computed(() => {
   switch (activeNav.value) {
     case 'home': return HomePage
+    case 'ops': return OpsPage
     case 'users': return UserPage
     case 'connections': return ConnectionsPage
     case 'tunnels': return TunnelPage
@@ -122,6 +124,10 @@ const tunnelActive = computed(() => tunnelSummary.value.running > 0)
         <a class="nav-item" :class="{ active: activeNav === 'home' }" href="#" title="首页" @click.prevent="switchNav('home')">
           <svg viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span v-show="!sidebarCollapsed">首页</span>
+        </a>
+        <a class="nav-item" :class="{ active: activeNav === 'ops' }" href="#" title="指令库" @click.prevent="switchNav('ops')">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="6" rx="2" stroke="currentColor" stroke-width="2"/><rect x="2" y="15" width="20" height="6" rx="2" stroke="currentColor" stroke-width="2"/><line x1="6" y1="6" x2="6.01" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="18" x2="6.01" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span v-show="!sidebarCollapsed">指令库</span>
         </a>
         <a class="nav-item" :class="{ active: activeNav === 'connections' }" href="#" title="连接管理" @click.prevent="switchNav('connections')">
           <svg viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>

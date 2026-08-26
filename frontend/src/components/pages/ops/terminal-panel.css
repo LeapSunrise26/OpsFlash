@@ -1,0 +1,298 @@
+/* 终端面板 */
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 240px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.terminal-panel-interactive {
+  border-color: rgba(96, 165, 250, 0.3);
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.08);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+.panel-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.terminal-interactive-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(96, 165, 250, 0.12);
+  color: #60A5FA;
+}
+.panel-clear {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.panel-clear:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.panel-icon-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.06);
+}
+/* 终端面板最大化（覆盖整个窗口） */
+.terminal-panel-maximized {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: #06070f;
+}
+.terminal-panel-maximized .terminal-body {
+  padding: 14px 20px;
+}
+.terminal-panel-maximized .terminal-line {
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.terminal-body {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 8px;
+  overflow: hidden;
+  -webkit-user-select: text;
+  user-select: text;
+  --wails-draggable: no-drag;
+}
+
+/* xterm 容器：占满可用空间（xterm 内部样式由 xterm.css 控制，勿在此加 padding 覆盖） */
+.xterm-container .xterm {
+  height: 100%;
+}
+
+.terminal-empty-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* 数据库查询结果表格（xterm 内等宽文本渲染，样式保留备用） */
+.terminal-table-wrap {
+  margin: 4px 0;
+  overflow-x: auto;
+}
+.terminal-table {
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 11.5px;
+  color: #c8d2e5;
+  min-width: 100%;
+}
+.terminal-table th,
+.terminal-table td {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 5px 10px;
+  text-align: left;
+  white-space: nowrap;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.terminal-table th {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60A5FA;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+.terminal-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03);
+}
+.terminal-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+/* 终端右键菜单（仅复制） */
+.term-context-menu {
+  position: fixed;
+  z-index: 1200;
+  min-width: 96px;
+  padding: 4px;
+  background: #161b28;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --wails-draggable: no-drag;
+}
+.term-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.term-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.term-menu-item:active {
+  background: rgba(255, 45, 114, 0.15);
+}
+
+/* 日志面板 */
+.log-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 180px;
+  min-height: 120px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.log-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  -webkit-user-select: text;
+  user-select: text;
+  --wails-draggable: no-drag;
+}
+.log-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+}
+.log-list {
+  display: flex;
+  flex-direction: column;
+}
+.log-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  transition: background 0.15s ease;
+}
+.log-entry:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.log-entry-fail {
+  background: rgba(239, 68, 68, 0.06);
+}
+.log-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.log-name {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.log-action {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.log-action-ok {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34D399;
+}
+.log-action-fail {
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+}
+.log-status {
+  margin-left: auto;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.log-status-ok {
+  color: #34D399;
+}
+.log-status-fail {
+  color: #EF4444;
+}
+
+/* ==================== 滚动条（终端/日志） ==================== */
+.terminal-body::-webkit-scrollbar,
+.log-body::-webkit-scrollbar {
+  width: 6px;
+}
+.terminal-body::-webkit-scrollbar-track,
+.log-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.terminal-body::-webkit-scrollbar-thumb,
+.log-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.terminal-body::-webkit-scrollbar-thumb:hover,
+.log-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ==================== 响应式：终端面板最小高度 ==================== */
+@media (max-width: 900px) {
+  .terminal-panel {
+    min-height: 180px;
+  }
+}

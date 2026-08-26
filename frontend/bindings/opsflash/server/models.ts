@@ -14,6 +14,69 @@ export interface BatchTunnelFailure {
 }
 
 /**
+ * Command 命令信息
+ */
+export interface Command {
+    "id": number;
+    "name": string;
+    "command": string;
+    "remark": string;
+
+    /**
+     * "non-interactive" | "interactive" | "daemon"
+     */
+    "type": string;
+
+    /**
+     * "cmd" | "powershell" | "bash"，脚本解释器（仅 terminal 模式生效）
+     */
+    "interpreter": string;
+
+    /**
+     * 排序值，越大越靠前，默认 10
+     */
+    "sortOrder": number;
+    "environmentId": number;
+    "envName": string;
+
+    /**
+     * daemon/interactive 类型的运行状态
+     */
+    "running": boolean;
+    "createdAt": string;
+
+    /**
+     * "terminal" | "ssh"
+     */
+    "mode": string;
+
+    /**
+     * 执行目标连接 ID，0 = 本地（terminal）
+     */
+    "connectionId": number;
+
+    /**
+     * JOIN connections 带出，如 "prod-01@10.0.0.1"
+     */
+    "connectionName": string;
+}
+
+export interface CommandResponse {
+    "success": boolean;
+    "command": Command;
+    "message": string;
+}
+
+/**
+ * 响应类型
+ */
+export interface CommandsResponse {
+    "success": boolean;
+    "commands": Command[] | null;
+    "message": string;
+}
+
+/**
  * Connection 连接信息
  */
 export interface Connection {
@@ -76,6 +139,35 @@ export interface ConnectionsResponse {
     "success": boolean;
     "connections": Connection[] | null;
     "message": string;
+}
+
+export interface CreateCommandRequest {
+    "token": string;
+    "name": string;
+    "command": string;
+    "remark": string;
+
+    /**
+     * "non-interactive" | "interactive" | "daemon"
+     */
+    "type": string;
+
+    /**
+     * "cmd" | "powershell" | "bash"
+     */
+    "interpreter": string;
+    "sortOrder": number;
+    "environmentId": number;
+
+    /**
+     * "terminal" | "ssh"
+     */
+    "mode": string;
+
+    /**
+     * 0 = 本地
+     */
+    "connectionId": number;
 }
 
 export interface CreateConnectionRequest {
@@ -169,6 +261,16 @@ export interface CreateUserRequest {
     "role": string;
 }
 
+export interface DeleteCommandRequest {
+    "token": string;
+    "id": number;
+}
+
+export interface DeleteCommandResponse {
+    "success": boolean;
+    "message": string;
+}
+
 export interface DeleteConnectionRequest {
     "token": string;
     "id": number;
@@ -251,6 +353,11 @@ export interface EnvironmentsResponse {
 }
 
 /**
+ * EventEmitter 前端事件发射器（由 main 注入 application.EventManager）
+ */
+export type EventEmitter = any;
+
+/**
  * ExportTunnelsRequest 导出请求
  */
 export interface ExportTunnelsRequest {
@@ -267,6 +374,14 @@ export interface ExportTunnelsResponse {
 }
 
 /**
+ * 请求类型：命令
+ */
+export interface GetCommandsRequest {
+    "token": string;
+    "environmentId": number;
+}
+
+/**
  * 请求/响应类型
  */
 export interface GetConnectionsRequest {
@@ -280,6 +395,24 @@ export interface GetConnectionsRequest {
 
 export interface GetEnvironmentsRequest {
     "token": string;
+}
+
+export interface GetInteractiveOutputRequest {
+    "token": string;
+    "id": number;
+}
+
+export interface GetInteractiveOutputResponse {
+    "success": boolean;
+    "output": string;
+    "done": boolean;
+    "exitError": string;
+    "message": string;
+}
+
+export interface GetStreamOutputRequest {
+    "token": string;
+    "id": number;
 }
 
 /**
@@ -317,6 +450,11 @@ export interface ImportTunnelsResponse {
     "success": boolean;
     "created": Tunnel[] | null;
     "failed": BatchTunnelFailure[] | null;
+    "message": string;
+}
+
+export interface InteractiveInputResponse {
+    "success": boolean;
     "message": string;
 }
 
@@ -361,9 +499,36 @@ export interface LogoutResponse {
     "message": string;
 }
 
+export interface ProcessResponse {
+    "success": boolean;
+    "message": string;
+    "running": boolean;
+}
+
 export interface ReadScriptRequest {
     "token": string;
     "id": number;
+}
+
+/**
+ * ResizeTerminalRequest 调整终端尺寸请求
+ */
+export interface ResizeTerminalRequest {
+    "token": string;
+    "id": number;
+    "cols": number;
+    "rows": number;
+}
+
+export interface RunCommandRequest {
+    "token": string;
+    "id": number;
+}
+
+export interface RunCommandResponse {
+    "success": boolean;
+    "output": string;
+    "message": string;
 }
 
 export interface RunScriptRequest {
@@ -449,10 +614,56 @@ export interface ScriptsResponse {
     "message": string;
 }
 
+export interface SendInteractiveInputRequest {
+    "token": string;
+    "id": number;
+    "input": string;
+}
+
+/**
+ * SendStreamInputRequest 流式会话输入请求（多行 shell 会话执行中的交互输入，如 sudo/ssh 密码）
+ */
+export interface SendStreamInputRequest {
+    "token": string;
+    "id": number;
+    "input": string;
+}
+
+/**
+ * 守护进程请求/响应
+ */
+export interface StartDaemonRequest {
+    "token": string;
+    "id": number;
+}
+
+/**
+ * 交互式命令请求/响应
+ */
+export interface StartInteractiveRequest {
+    "token": string;
+    "id": number;
+}
+
+export interface StartStreamRequest {
+    "token": string;
+    "id": number;
+}
+
 /**
  * 请求/响应类型
  */
 export interface StartTunnelRequest {
+    "token": string;
+    "id": number;
+}
+
+export interface StopDaemonRequest {
+    "token": string;
+    "id": number;
+}
+
+export interface StopInteractiveRequest {
     "token": string;
     "id": number;
 }
@@ -462,9 +673,26 @@ export interface StopScriptRunRequest {
     "id": number;
 }
 
+export interface StopStreamRequest {
+    "token": string;
+    "id": number;
+}
+
 export interface StopTunnelRequest {
     "token": string;
     "id": number;
+}
+
+/**
+ * TerminalOutputEvent 终端输出事件（pty:output，后端 → 前端）
+ * Data 为 UTF-8 字节流（保留 ANSI 控制码，xterm 直接渲染）；
+ * Done=true 表示会话结束（读循环退出）。
+ */
+export interface TerminalOutputEvent {
+    "id": number;
+    "data": string;
+    "done": boolean;
+    "exitError": string;
 }
 
 export interface TestConnectionConfigRequest {
@@ -610,6 +838,20 @@ export interface TunnelsResponse {
     "success": boolean;
     "tunnels": Tunnel[] | null;
     "message": string;
+}
+
+export interface UpdateCommandRequest {
+    "token": string;
+    "id": number;
+    "name": string;
+    "command": string;
+    "remark": string;
+    "type": string;
+    "interpreter": string;
+    "sortOrder": number;
+    "environmentId": number;
+    "mode": string;
+    "connectionId": number;
 }
 
 export interface UpdateConnectionRequest {

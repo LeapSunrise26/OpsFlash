@@ -1,0 +1,414 @@
+/* 命令卡片 */
+.cmd-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+.cmd-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 45, 114, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+.cmd-card-daemon-running {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.04);
+}
+.cmd-card-daemon-running:hover {
+  border-color: rgba(52, 211, 153, 0.5);
+  box-shadow: 0 4px 20px rgba(52, 211, 153, 0.1);
+}
+.cmd-card-interactive-running {
+  border-color: rgba(96, 165, 250, 0.3);
+  background: rgba(96, 165, 250, 0.04);
+}
+.cmd-card-interactive-running:hover {
+  border-color: rgba(96, 165, 250, 0.5);
+  box-shadow: 0 4px 20px rgba(96, 165, 250, 0.1);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  --wails-draggable: no-drag;
+}
+.card-head:hover .cmd-name {
+  color: #fff;
+}
+
+/* 展开/收起箭头 */
+.card-chevron {
+  color: rgba(255, 255, 255, 0.35);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.card-chevron-open {
+  transform: rotate(90deg);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 卡片头部操作按钮组 */
+.card-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 卡片收起态：更紧凑 */
+.cmd-card-collapsed {
+  padding: 10px 14px;
+}
+
+/* 卡片可展开详情区 */
+.card-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.card-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmd-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f4f6fb;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+}
+
+/* 卡片头部环境标签（常显） */
+.cmd-env-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  max-width: 96px;
+  overflow: hidden;
+}
+.cmd-env-badge .cmd-env-dot {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+}
+.cmd-env-badge .cmd-env-name {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmd-env-badge .cmd-env-dot-active {
+  background: #FF2D72;
+}
+
+/* 类型徽章 */
+.cmd-type-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+.cmd-type-non-interactive {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+}
+.cmd-type-interactive {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60A5FA;
+}
+.cmd-type-daemon {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34D399;
+}
+
+/* 执行模式徽章（本地 / SSH） */
+.cmd-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.cmd-mode-terminal {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cmd-mode-ssh {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60A5FA;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+.cmd-mode-redis {
+  background: rgba(248, 113, 113, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+.cmd-mode-mysql {
+  background: rgba(45, 212, 191, 0.15);
+  color: #2DD4BF;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+}
+.cmd-mode-tdengine {
+  background: rgba(167, 139, 250, 0.15);
+  color: #A78BFA;
+  border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+/* 脚本类型徽章（PowerShell / Bash，仅非 cmd 显示） */
+.cmd-interpreter-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.cmd-interpreter-powershell {
+  background: rgba(96, 165, 250, 0.18);
+  color: #7CB8FF;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+}
+.cmd-interpreter-bash {
+  background: rgba(251, 191, 36, 0.14);
+  color: #FBBF24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+.cmd-interpreter-cmd {
+  background: rgba(255, 255, 255, 0.08);
+  color: #9aa6c0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* 卡片 footer：SSH 连接标签 */
+.cmd-conn-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(96, 165, 250, 0.1);
+  color: #60A5FA;
+  font-size: 11px;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 进程运行状态条 */
+.process-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.cmd-card-daemon-running .process-status-bar {
+  background: rgba(52, 211, 153, 0.08);
+}
+.cmd-card-interactive-running .process-status-bar {
+  background: rgba(96, 165, 250, 0.08);
+}
+.process-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.cmd-card-daemon-running .process-pulse {
+  background: #34D399;
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.6);
+}
+.cmd-card-interactive-running .process-pulse {
+  background: #60A5FA;
+  box-shadow: 0 0 6px rgba(96, 165, 250, 0.6);
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+.process-status-text {
+  font-size: 11px;
+  font-weight: 500;
+}
+.cmd-card-daemon-running .process-status-text {
+  color: #34D399;
+}
+.cmd-card-interactive-running .process-status-text {
+  color: #60A5FA;
+}
+
+/* 运行按钮 */
+.run-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(52, 211, 153, 0.15);
+  color: #34D399;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.run-btn:hover:not(:disabled) {
+  background: rgba(52, 211, 153, 0.25);
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
+}
+.run-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+.run-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.run-btn svg {
+  width: 12px;
+  height: 12px;
+}
+.run-btn-stop {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+}
+.run-btn-stop:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.25);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.run-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(52, 211, 153, 0.2);
+  border-top-color: #34D399;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.run-spinner-stop {
+  border-color: rgba(239, 68, 68, 0.2);
+  border-top-color: #EF4444;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 命令块 */
+.cmd-block {
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.cmd-text {
+  font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+  font-size: 12px;
+  color: #FF77B0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.cmd-remark {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cmd-env-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.cmd-sort-tag {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-right: 2px;
+}
+.cmd-env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+.cmd-env-dot-active {
+  background: #FF2D72;
+}
+.cmd-env-name {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.cmd-actions {
+  display: flex;
+  gap: 8px;
+}
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+}
+.action-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+}

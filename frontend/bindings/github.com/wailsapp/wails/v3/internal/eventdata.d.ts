@@ -5,9 +5,14 @@
 // @ts-ignore: Unused imports
 import type { Events } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as server$0 from "../../../../../opsflash/server/models.js";
+
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "pty:output": server$0.TerminalOutputEvent;
             "time": string;
         }
     }

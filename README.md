@@ -6,7 +6,7 @@
 
 OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工具。单二进制分发，本地 SQLite 存储，敏感凭据加密保护，让日常服务器运维轻快如一瞬闪电。
 
-> 当前版本：v0.2.0 · License：MIT
+> 当前版本：v0.3.0 · License：MIT
 
 ## 仓库地址
 
@@ -18,6 +18,7 @@ OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工�
 - **用户与认证**：登录 / 登出，Token 会话（24h 过期），密码 bcrypt 哈希，用户管理（创建/修改/删除/角色）
 - **连接管理**：SSH 连接统一管理，私钥 / 口令凭据本地加密存储，连接测试
 - **SSH 隧道**：local / remote / dynamic 三种端口转发，一键启停、断线自动重连、应用启动自启、分组与批量创建
+- **指令库**：命令统一管理（环境分组、本地 terminal / SSH 远程两种执行位置、cmd / PowerShell / Bash 脚本解释器）；非交互 / 交互终端 / 守护进程三种命令类型，ConPTY 实时输出、流式执行可停止
 - **脚本库**：bat / ps1 / sh 脚本统一管理（环境分组、在线编辑、重命名、一键执行）；ConPTY 实时输出、多会话并行、可停止；Windows 走 WSL bash / Git Bash（自动探测路径挂载）
 - **桌面体验**：系统托盘（关闭最小化）、每日日志文件
 
@@ -25,7 +26,7 @@ OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工�
 
 | 层 | 技术 |
 |----|------|
-| 桌面框架 | [Wails v3](https://wails.io/)（v3.0.0-beta.9） |
+| 桌面框架 | [Wails v3](https://wails.io/)（v3.0.0-beta.4） |
 | 后端语言 | Go 1.25 |
 | 前端 | Vue 3 + TypeScript + Vite 8 |
 | SSH | golang.org/x/crypto/ssh（纯 Go，无 CGO） |
@@ -71,19 +72,22 @@ task build:server   # 或 task run:server
 │   ├── authservice.go      # 登录/会话
 │   ├── userservice.go      # 用户管理
 │   ├── connections.go      # SSH 连接管理
+│   ├── opsservice.go       # 指令库（命令 CRUD）
+│   ├── opsruntime.go       # 指令库执行运行时（流式/交互/守护 + ConPTY 噪声清洗）
+│   ├── executor.go         # 执行器工厂（terminal/ssh）
 │   ├── tunnelservice.go    # SSH 隧道 CRUD
 │   ├── tunnelcontrol.go    # 隧道启停/分组控制
 │   ├── tunnelruntime.go    # 隧道运行时管理
 │   ├── scriptservice.go    # 脚本库（CRUD + 执行 + 环境管理）
-│   ├── scriptenv.go        # 环境 CRUD（脚本库归属）
-│   ├── scriptnoise.go      # ConPTY 噪声清洗/输出解码辅助
+│   ├── scriptenv.go        # 环境 CRUD（指令库/脚本库归属）
 │   ├── cmd/                # 命令构造（cmd/powershell/bash + WSL 路径转换）
 │   ├── pty/                # PTY 传输层（Windows ConPTY / Unix creack/pty）
-│   ├── exec/               # SSH 拨号与连接测试
+│   ├── daemon/             # 守护进程（Windows Job Object 进程树管理）
+│   ├── exec/               # 执行器（terminal 本地 / ssh 远程）与连接测试
 │   ├── secret/             # 凭据加密（DPAPI / AES-256-GCM）
 │   └── tunnel/             # 隧道实现（local/remote/dynamic）
 ├── frontend/               # Vue 3 前端
-│   └── src/components/pages/  # 页面：登录/首页/连接/隧道/用户/脚本库
+│   └── src/components/pages/  # 页面：登录/首页/指令库/连接/隧道/用户/脚本库
 ├── docs/                   # 设计文档与数据库结构
 └── build/                  # 平台打包配置
 ```
@@ -98,7 +102,7 @@ task build:server   # 或 task run:server
 | **第二阶段** | v0.2.0 | 脚本库（bat/ps1/sh 本地脚本管理 + 一键执行） |
 | **第三阶段** | v0.3.0 | 本地脚本：cmd、powershell、bash |
 | **第四阶段** | v0.4.0 | 数据库执行：Redis、MySQL、TDengine |
-| **第五阶段** | v0.5.0 | 批量执行 |
+| **第五阶段** | v0.5.0 | 指令编排（批量执行 + 依赖关系） |
 
 ## 文档
 

@@ -108,6 +108,23 @@ func InitDB() error {
 			ts INTEGER NOT NULL
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_scripts_env_name ON scripts(environment_id, name);
+		CREATE TABLE IF NOT EXISTS commands (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			command TEXT NOT NULL,
+			remark TEXT DEFAULT '',
+			type TEXT NOT NULL DEFAULT 'non-interactive',
+			sort_order INTEGER NOT NULL DEFAULT 10,
+			environment_id INTEGER NOT NULL,
+			interpreter TEXT NOT NULL DEFAULT 'cmd',
+			mode TEXT NOT NULL DEFAULT 'terminal',
+			connection_id INTEGER,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (environment_id) REFERENCES environments(id),
+			FOREIGN KEY (connection_id) REFERENCES connections(id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_commands_connection ON commands(connection_id);
 	`)
 	if err != nil {
 		slog.Error("创建数据库表失败", "error", err)
