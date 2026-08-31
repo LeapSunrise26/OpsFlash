@@ -68,6 +68,7 @@ func InitDB() error {
 			private_key TEXT DEFAULT '',
 			private_key_path TEXT DEFAULT '',
 			passphrase TEXT DEFAULT '',
+			database TEXT DEFAULT '', -- redis DB 索引 / mysql、tdengine 库名
 			remark TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -130,6 +131,9 @@ func InitDB() error {
 		slog.Error("创建数据库表失败", "error", err)
 		return fmt.Errorf("创建表失败: %w", err)
 	}
+
+	// 迁移：为旧库的 connections 表补充 database 列（v0.4.0 数据库执行新增，幂等可重复执行）
+	_, _ = db.Exec("ALTER TABLE connections ADD COLUMN database TEXT DEFAULT ''")
 	slog.Info("数据库表初始化完成")
 
 	// 如果 environments 表为空，插入默认环境（开发/测试/生产，带英文 key）

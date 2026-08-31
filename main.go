@@ -19,7 +19,7 @@ import (
 
 const (
 	AppName = "OpsFlash"
-	Version = "0.3.0"
+	Version = "0.4.0"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.

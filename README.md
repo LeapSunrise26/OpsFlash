@@ -6,7 +6,7 @@
 
 OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工具。单二进制分发，本地 SQLite 存储，敏感凭据加密保护，让日常服务器运维轻快如一瞬闪电。
 
-> 当前版本：v0.3.0 · License：MIT
+> 当前版本：v0.4.0 · License：MIT
 
 ## 仓库地址
 
@@ -16,9 +16,10 @@ OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工�
 ## 特性
 
 - **用户与认证**：登录 / 登出，Token 会话（24h 过期），密码 bcrypt 哈希，用户管理（创建/修改/删除/角色）
-- **连接管理**：SSH 连接统一管理，私钥 / 口令凭据本地加密存储，连接测试
+- **连接管理**：SSH / Redis / MySQL / TDengine 连接统一管理，密码、私钥、口令凭据本地加密存储，连接测试（含往返延迟）
 - **SSH 隧道**：local / remote / dynamic 三种端口转发，一键启停、断线自动重连、应用启动自启、分组与批量创建
-- **指令库**：命令统一管理（环境分组、本地 terminal / SSH 远程两种执行位置、cmd / PowerShell / Bash 脚本解释器）；非交互 / 交互终端 / 守护进程三种命令类型，ConPTY 实时输出、流式执行可停止
+- **指令库**：命令统一管理（环境分组、terminal / SSH / Redis / MySQL / TDengine 五种执行位置、cmd / PowerShell / Bash 脚本解释器）；非交互 / 交互终端 / 守护进程三种命令类型，ConPTY 实时输出、流式执行可停止
+- **数据库执行**：Redis 指令（go-redis）、MySQL / TDengine SQL（taosAdapter REST 免 CGO）一键执行，查询结果以结构化表格展示在终端面板
 - **脚本库**：bat / ps1 / sh 脚本统一管理（环境分组、在线编辑、重命名、一键执行）；ConPTY 实时输出、多会话并行、可停止；Windows 走 WSL bash / Git Bash（自动探测路径挂载）
 - **桌面体验**：系统托盘（关闭最小化）、每日日志文件
 
@@ -30,6 +31,9 @@ OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工�
 | 后端语言 | Go 1.25 |
 | 前端 | Vue 3 + TypeScript + Vite 8 |
 | SSH | golang.org/x/crypto/ssh（纯 Go，无 CGO） |
+| Redis 客户端 | github.com/redis/go-redis/v9 |
+| MySQL 驱动 | github.com/go-sql-driver/mysql |
+| TDengine | taosAdapter REST 接口（纯 Go net/http，无 CGO） |
 | 存储 | SQLite（modernc.org/sqlite，纯 Go 驱动） |
 
 ## 快速开始
@@ -71,10 +75,10 @@ task build:server   # 或 task run:server
 ├── server/                 # Go 后端
 │   ├── authservice.go      # 登录/会话
 │   ├── userservice.go      # 用户管理
-│   ├── connections.go      # SSH 连接管理
+│   ├── connections.go      # 连接管理（ssh/redis/mysql/tdengine CRUD + 测试）
 │   ├── opsservice.go       # 指令库（命令 CRUD）
-│   ├── opsruntime.go       # 指令库执行运行时（流式/交互/守护 + ConPTY 噪声清洗）
-│   ├── executor.go         # 执行器工厂（terminal/ssh）
+│   ├── opsruntime.go       # 指令库执行运行时（流式/交互/守护/数据库 + ConPTY 噪声清洗）
+│   ├── executor.go         # 执行器工厂（terminal/ssh/redis/mysql/tdengine）
 │   ├── tunnelservice.go    # SSH 隧道 CRUD
 │   ├── tunnelcontrol.go    # 隧道启停/分组控制
 │   ├── tunnelruntime.go    # 隧道运行时管理
@@ -83,7 +87,7 @@ task build:server   # 或 task run:server
 │   ├── cmd/                # 命令构造（cmd/powershell/bash + WSL 路径转换）
 │   ├── pty/                # PTY 传输层（Windows ConPTY / Unix creack/pty）
 │   ├── daemon/             # 守护进程（Windows Job Object 进程树管理）
-│   ├── exec/               # 执行器（terminal 本地 / ssh 远程）与连接测试
+│   ├── exec/               # 执行器（terminal / ssh / redis / mysql / tdengine）与连接测试
 │   ├── secret/             # 凭据加密（DPAPI / AES-256-GCM）
 │   └── tunnel/             # 隧道实现（local/remote/dynamic）
 ├── frontend/               # Vue 3 前端
@@ -101,7 +105,7 @@ task build:server   # 或 task run:server
 | **第一阶段** | v0.1.0 | 用户管理、登录、首页、连接管理（SSH + 隧道管理） |
 | **第二阶段** | v0.2.0 | 脚本库（bat/ps1/sh 本地脚本管理 + 一键执行） |
 | **第三阶段** | v0.3.0 | 本地脚本：cmd、powershell、bash |
-| **第四阶段** | v0.4.0 | 数据库执行：Redis、MySQL、TDengine |
+| **第四阶段** | v0.4.0 | 数据库执行：Redis、MySQL、TDengine ✅ |
 | **第五阶段** | v0.5.0 | 指令编排（批量执行 + 依赖关系） |
 
 ## 文档

@@ -28,7 +28,7 @@ interface CommandForm {
   interpreter: 'cmd' | 'powershell' | 'bash'
   sortOrder: number
   environmentId: number
-  mode: 'terminal' | 'ssh'
+  mode: 'terminal' | 'ssh' | 'redis' | 'mysql' | 'tdengine'
   connectionId: number
 }
 
@@ -66,7 +66,10 @@ watch(
             : 'cmd',
         sortOrder: cmd.sortOrder || 10,
         environmentId: cmd.environmentId,
-        mode: cmd.mode === 'ssh' ? cmd.mode : 'terminal',
+        mode:
+          cmd.mode === 'ssh' || cmd.mode === 'redis' || cmd.mode === 'mysql' || cmd.mode === 'tdengine'
+            ? cmd.mode
+            : 'terminal',
         connectionId: cmd.connectionId || 0,
       }
     } else {
@@ -91,7 +94,7 @@ function close() {
   emit('close')
 }
 
-// 当前表单模式对应的可用连接（ssh→ssh 连接）
+// 当前表单模式对应的可用连接（ssh→ssh 连接、redis→redis 连接...）
 function connForMode(mode: string) {
   return props.connections.filter((c) => c.type === mode)
 }
@@ -232,6 +235,57 @@ const typeFullNames: Record<string, string> = {
                 <p class="type-option-desc">通过 SSH 连接远程主机执行命令</p>
               </div>
             </label>
+            <label
+              class="type-option"
+              :class="{ 'type-option-active': form.mode === 'redis' }"
+            >
+              <input v-model="form.mode" type="radio" value="redis" class="type-radio" />
+              <div class="type-option-content">
+                <div class="type-option-header">
+                  <svg class="type-icon" viewBox="0 0 24 24" fill="none" width="18" height="18">
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9l2.1 2.1m10 10l2.1 2.1m0-14.2l-2.1 2.1m-10 10l-2.1 2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  <span class="type-option-name">Redis</span>
+                </div>
+                <p class="type-option-desc">执行 Redis 指令，如 PING、GET key</p>
+              </div>
+            </label>
+            <label
+              class="type-option"
+              :class="{ 'type-option-active': form.mode === 'mysql' }"
+            >
+              <input v-model="form.mode" type="radio" value="mysql" class="type-radio" />
+              <div class="type-option-content">
+                <div class="type-option-header">
+                  <svg class="type-icon" viewBox="0 0 24 24" fill="none" width="18" height="18">
+                    <ellipse cx="12" cy="5" rx="8" ry="3" stroke="currentColor" stroke-width="2"/>
+                    <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5" stroke="currentColor" stroke-width="2"/>
+                    <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <span class="type-option-name">MySQL</span>
+                </div>
+                <p class="type-option-desc">执行 SQL 语句，返回结果表格</p>
+              </div>
+            </label>
+            <label
+              class="type-option"
+              :class="{ 'type-option-active': form.mode === 'tdengine' }"
+            >
+              <input v-model="form.mode" type="radio" value="tdengine" class="type-radio" />
+              <div class="type-option-content">
+                <div class="type-option-header">
+                  <svg class="type-icon" viewBox="0 0 24 24" fill="none" width="18" height="18">
+                    <ellipse cx="12" cy="5" rx="8" ry="3" stroke="currentColor" stroke-width="2"/>
+                    <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5" stroke="currentColor" stroke-width="2"/>
+                    <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" stroke="currentColor" stroke-width="2"/>
+                    <path d="M4 8.5c0 1.66 3.58 3 8 3s8-1.34 8-3" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+                  </svg>
+                  <span class="type-option-name">TAOS</span>
+                </div>
+                <p class="type-option-desc">执行时序 SQL，返回结果表格</p>
+              </div>
+            </label>
           </div>
         </div>
 
@@ -261,7 +315,7 @@ const typeFullNames: Record<string, string> = {
                 v-for="conn in connForMode(form.mode)"
                 :key="conn.id"
                 :value="conn.id"
-              >{{ conn.name }}（{{ conn.username ? conn.username + '@' : '' }}{{ conn.host }}:{{ conn.port }}）</option>
+              >{{ conn.name }}（{{ conn.type === 'ssh' ? conn.username + '@' : '' }}{{ conn.host }}:{{ conn.port }}{{ conn.database ? ' / ' + conn.database : '' }}）</option>
             </select>
             <svg class="select-arrow" viewBox="0 0 24 24" fill="none">
               <polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

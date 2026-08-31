@@ -12,7 +12,7 @@ import (
 )
 
 // ==================== 指令库（命令管理：数据增删改查）====================
-// v0.3.0：命令 CRUD + 执行目标（terminal 本地 / ssh 远程）。
+// v0.4.0：命令 CRUD + 执行目标（terminal 本地 / ssh 远程 / redis / mysql / tdengine 数据库）。
 // 环境归属复用 ScriptsService 的环境管理（environments 表同源）。
 
 // Command 命令信息
@@ -28,7 +28,7 @@ type Command struct {
 	EnvName        string `json:"envName"`
 	Running        bool   `json:"running"` // daemon/interactive 类型的运行状态
 	CreatedAt      string `json:"createdAt"`
-	Mode           string `json:"mode"`           // "terminal" | "ssh"
+	Mode           string `json:"mode"`           // "terminal" | "ssh" | "redis" | "mysql" | "tdengine"
 	ConnectionId   int    `json:"connectionId"`   // 执行目标连接 ID，0 = 本地（terminal）
 	ConnectionName string `json:"connectionName"` // JOIN connections 带出，如 "prod-01@10.0.0.1"
 }
@@ -48,7 +48,7 @@ type CreateCommandRequest struct {
 	Interpreter   string `json:"interpreter"` // "cmd" | "powershell" | "bash"
 	SortOrder     int    `json:"sortOrder"`
 	EnvironmentId int    `json:"environmentId"`
-	Mode          string `json:"mode"`         // "terminal" | "ssh"
+	Mode          string `json:"mode"`         // "terminal" | "ssh" | "redis" | "mysql" | "tdengine"
 	ConnectionId  int    `json:"connectionId"` // 0 = 本地
 }
 
@@ -139,14 +139,14 @@ func (s *OpsService) ensureMap() {
 }
 
 // validateModeAndConnection 校验执行模式与目标连接的一致性
-// terminal 模式：connectionId 必须为 0；ssh 模式：连接必须存在且类型匹配
+// terminal 模式：connectionId 必须为 0；ssh/redis/mysql/tdengine 模式：连接必须存在且类型匹配
 func validateModeAndConnection(mode string, connectionId int) (string, error) {
 	mode = strings.TrimSpace(mode)
 	if mode == "" {
 		mode = "terminal"
 	}
 	if !validCommandModes[mode] {
-		return "", fmt.Errorf("执行模式无效，仅支持 terminal、ssh")
+		return "", fmt.Errorf("执行模式无效，仅支持 terminal、ssh、redis、mysql、tdengine")
 	}
 	if mode == "terminal" {
 		if connectionId != 0 {

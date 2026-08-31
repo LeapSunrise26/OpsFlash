@@ -117,9 +117,11 @@ type InteractiveInputResponse struct {
 }
 
 type RunCommandResponse struct {
-	Success bool   `json:"success"`
-	Output  string `json:"output"`
-	Message string `json:"message"`
+	Success    bool              `json:"success"`
+	Output     string            `json:"output"`
+	ResultType string            `json:"resultType"` // "" | "text" | "table"（数据库查询类返回表格）
+	Result     *exec.QueryResult `json:"result"`
+	Message    string            `json:"message"`
 }
 
 // interactiveSession 交互式命令会话
@@ -180,6 +182,28 @@ func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
 	defer cancel()
 
 	start := time.Now()
+
+	// 数据库类执行器（redis/mysql/tdengine）返回结构化结果，前端渲染表格
+	if qex, ok := ex.(exec.QueryExecutor); ok {
+		result, qerr := qex.Query(ctx, cmdText)
+		elapsed := time.Since(start)
+		if qerr != nil {
+			slog.Warn("数据库指令执行失败", "name", cmdName, "mode", mode, "error", qerr, "elapsed", elapsed)
+			return RunCommandResponse{
+				Success: false,
+				Output:  qerr.Error(),
+				Message: "指令执行失败: " + qerr.Error(),
+			}
+		}
+		slog.Info("数据库指令执行成功", "name", cmdName, "mode", mode, "elapsed", elapsed, "columns", len(result.Columns), "rows", len(result.Rows))
+		return RunCommandResponse{
+			Success:    true,
+			Output:     "查询成功",
+			ResultType: "table",
+			Result:     result,
+			Message:    "指令执行成功",
+		}
+	}
 
 	// 本地 cmd 多行：按行拆分为独立命令逐条执行、逐行展示结果
 	// （powershell/bash 为整体脚本执行，不拆分；ssh/数据库模式不适用）

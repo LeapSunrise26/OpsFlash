@@ -106,7 +106,7 @@ export function useCommandExec(
     }
   }
 
-  // 同步一次性执行（ssh 模式兜底）
+  // 同步一次性执行（ssh / 数据库模式）
   async function runCommandSync(cmd: Command) {
     runningCmdId.value = cmd.id
     appendTerminal({ type: 'cmd', text: cmdDisplay(cmd) })
@@ -117,6 +117,18 @@ export function useCommandExec(
         id: cmd.id,
       })
       if (res.success) {
+        // 数据库类命令：渲染结构化表格
+        if (res.resultType === 'table' && res.result) {
+          appendTerminal({
+            type: 'table',
+            text: '',
+            columns: res.result.columns || [],
+            rows: (res.result.rows || []).filter((r): r is string[] => !!r),
+          })
+          appendTerminal({ type: 'empty', text: '' })
+          addLog(cmd.name, '运行', true, res.message)
+          return
+        }
         if (res.output) {
           const lines = res.output.split('\n')
           for (const line of lines) {

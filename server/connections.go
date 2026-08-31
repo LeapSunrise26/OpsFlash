@@ -12,22 +12,23 @@ import (
 )
 
 // ==================== 连接管理（数据层 + 管理 API）====================
-// 连接（Connection）= SSH 服务器信息描述（第一阶段仅支持 SSH）。
+// 连接（Connection）= 服务器 / 数据库服务信息描述（ssh / redis / mysql / tdengine）。
 // 敏感字段（密码/私钥/口令）经 secret 包加密后落库，接口返回时脱敏。
 
 // Connection 连接信息
 type Connection struct {
 	ID             int    `json:"id"`
 	Name           string `json:"name"`       // 连接名称（唯一）
-	Type           string `json:"type"`       // ssh
+	Type           string `json:"type"`       // ssh | redis | mysql | tdengine
 	Host           string `json:"host"`
 	Port           int    `json:"port"`
-	Username       string `json:"username"`   // SSH 用户名
+	Username       string `json:"username"`   // ssh/mysql/tdengine 使用
 	AuthMethod     string `json:"authMethod"` // ssh: password | key
 	Password       string `json:"password"`   // 库中加密存储，返回时脱敏
 	PrivateKey     string `json:"privateKey"` // 私钥 PEM 内容（加密存储）
 	PrivateKeyPath string `json:"privateKeyPath"`
 	Passphrase     string `json:"passphrase"` // 私钥口令（加密存储）
+	Database       string `json:"database"`   // redis DB 索引 / mysql、tdengine 库名
 	Remark         string `json:"remark"`
 	HasSecret      bool   `json:"hasSecret"` // 是否已设置密码/私钥（脱敏后用于前端展示）
 	CreatedAt      string `json:"createdAt"`
@@ -52,6 +53,7 @@ type CreateConnectionRequest struct {
 	PrivateKey     string `json:"privateKey"`
 	PrivateKeyPath string `json:"privateKeyPath"`
 	Passphrase     string `json:"passphrase"`
+	Database       string `json:"database"`
 	Remark         string `json:"remark"`
 }
 
@@ -68,6 +70,7 @@ type UpdateConnectionRequest struct {
 	PrivateKey     string `json:"privateKey"`
 	PrivateKeyPath string `json:"privateKeyPath"`
 	Passphrase     string `json:"passphrase"`
+	Database       string `json:"database"`
 	Remark         string `json:"remark"`
 }
 
@@ -92,6 +95,7 @@ type TestConnectionConfigRequest struct {
 	PrivateKey     string `json:"privateKey"`
 	PrivateKeyPath string `json:"privateKeyPath"`
 	Passphrase     string `json:"passphrase"`
+	Database       string `json:"database"`
 }
 
 type ConnectionsResponse struct {
@@ -122,9 +126,12 @@ type TestConnectionResponse struct {
 // ConnService 连接管理服务
 type ConnService struct{}
 
-// 连接类型合法性 + 默认端口（第一阶段仅支持 SSH）
+// 连接类型合法性 + 默认端口（v0.4.0：ssh / redis / mysql / tdengine）
 var connectionTypePorts = map[string]int{
-	"ssh": 22,
+	"ssh":      22,
+	"redis":    6379,
+	"mysql":    3306,
+	"tdengine": 6041, // taosAdapter REST 接口
 }
 
 // ==================== 工具函数 ====================
@@ -136,7 +143,7 @@ func validateConnectionType(connType string) (string, error) {
 		return "", errors.New("连接类型不能为空")
 	}
 	if _, ok := connectionTypePorts[connType]; !ok {
-		return "", errors.New("连接类型无效，仅支持 ssh")
+		return "", errors.New("连接类型无效，仅支持 ssh、redis、mysql、tdengine")
 	}
 	return connType, nil
 }
@@ -167,7 +174,7 @@ func scanConnection(row interface{ Scan(...interface{}) error }) (*Connection, e
 	var password, privateKey, passphrase sql.NullString
 	err := row.Scan(&c.ID, &c.Name, &c.Type, &c.Host, &c.Port, &c.Username,
 		&c.AuthMethod, &password, &privateKey, &c.PrivateKeyPath, &passphrase,
-		&c.Remark, &c.CreatedAt, &c.UpdatedAt)
+		&c.Database, &c.Remark, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +184,7 @@ func scanConnection(row interface{ Scan(...interface{}) error }) (*Connection, e
 	return &c, nil
 }
 
-const connectionCols = "id, name, type, host, port, username, auth_method, password, private_key, private_key_path, passphrase, remark, created_at, updated_at"
+const connectionCols = "id, name, type, host, port, username, auth_method, password, private_key, private_key_path, passphrase, database, remark, created_at, updated_at"
 
 // loadConnectionByID 加载连接并解密敏感字段；id<=0 返回 nil（本地模式）
 func loadConnectionByID(id int) (*Connection, error) {
@@ -279,11 +286,11 @@ func (s *ConnService) CreateConnection(req CreateConnectionRequest) ConnectionRe
 
 	port := defaultPort(connType, req.Port)
 	result, err := db.Exec(`INSERT INTO connections
-		(name, type, host, port, username, auth_method, password, private_key, private_key_path, passphrase, remark)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(name, type, host, port, username, auth_method, password, private_key, private_key_path, passphrase, database, remark)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		name, connType, strings.TrimSpace(req.Host), port, strings.TrimSpace(req.Username),
 		authMethod, password, privateKey, strings.TrimSpace(req.PrivateKeyPath), passphrase,
-		strings.TrimSpace(req.Remark))
+		strings.TrimSpace(req.Database), strings.TrimSpace(req.Remark))
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return ConnectionResponse{Success: false, Message: "连接名称已存在"}
@@ -305,6 +312,7 @@ func (s *ConnService) CreateConnection(req CreateConnectionRequest) ConnectionRe
 			Port:       port,
 			Username:   strings.TrimSpace(req.Username),
 			AuthMethod: authMethod,
+			Database:   strings.TrimSpace(req.Database),
 			Remark:     strings.TrimSpace(req.Remark),
 			HasSecret:  req.Password != "" || req.PrivateKey != "" || req.Passphrase != "",
 		},
@@ -370,9 +378,9 @@ func (s *ConnService) UpdateConnection(req UpdateConnectionRequest) ConnectionRe
 	// 动态构造 UPDATE：只更新需要改动的敏感字段
 	query := `UPDATE connections SET
 		name = ?, type = ?, host = ?, port = ?, username = ?, auth_method = ?,
-		remark = ?, updated_at = CURRENT_TIMESTAMP`
+		database = ?, remark = ?, updated_at = CURRENT_TIMESTAMP`
 	args := []interface{}{name, connType, strings.TrimSpace(req.Host), port, strings.TrimSpace(req.Username),
-		authMethod, strings.TrimSpace(req.Remark)}
+		authMethod, strings.TrimSpace(req.Database), strings.TrimSpace(req.Remark)}
 	if req.Password != "" {
 		query += ", password = ?"
 		args = append(args, password)
@@ -412,6 +420,7 @@ func (s *ConnService) UpdateConnection(req UpdateConnectionRequest) ConnectionRe
 			Port:       port,
 			Username:   strings.TrimSpace(req.Username),
 			AuthMethod: authMethod,
+			Database:   strings.TrimSpace(req.Database),
 			Remark:     strings.TrimSpace(req.Remark),
 		},
 		Message: "连接修改成功",
@@ -472,7 +481,7 @@ func (s *ConnService) TestConnection(req TestConnectionRequest) TestConnectionRe
 	}
 
 	return testConnection(c.Type, c.Host, c.Port, c.Username, c.AuthMethod,
-		c.Password, c.PrivateKey, c.PrivateKeyPath, c.Passphrase)
+		c.Password, c.PrivateKey, c.PrivateKeyPath, c.Passphrase, c.Database)
 }
 
 // TestConnectionConfig 测试未保存的连接配置（编辑弹窗内直接测试）
@@ -488,17 +497,37 @@ func (s *ConnService) TestConnectionConfig(req TestConnectionConfigRequest) Test
 		return TestConnectionResponse{Success: false, Message: "主机地址不能为空"}
 	}
 	return testConnection(connType, req.Host, defaultPort(connType, req.Port), req.Username,
-		req.AuthMethod, req.Password, req.PrivateKey, req.PrivateKeyPath, req.Passphrase)
+		req.AuthMethod, req.Password, req.PrivateKey, req.PrivateKeyPath, req.Passphrase, req.Database)
 }
 
-// testConnection 执行连接测试（第一阶段仅支持 SSH）
-func testConnection(connType, host string, port int, username, authMethod, password, privateKey, privateKeyPath, passphrase string) TestConnectionResponse {
-	if connType != "ssh" {
+// testConnection 按类型执行连接测试
+func testConnection(connType, host string, port int, username, authMethod, password, privateKey, privateKeyPath, passphrase, database string) TestConnectionResponse {
+	switch connType {
+	case "ssh":
+		latency, err := exec.TestSSH(host, port, username, authMethod, password, privateKey, privateKeyPath, passphrase)
+		if err != nil {
+			return TestConnectionResponse{Success: false, Message: "SSH 连接失败: " + err.Error()}
+		}
+		return TestConnectionResponse{Success: true, Message: "SSH 连接成功", LatencyMs: latency}
+	case "redis":
+		latency, err := exec.TestRedis(host, port, password, database)
+		if err != nil {
+			return TestConnectionResponse{Success: false, Message: "Redis 连接失败: " + err.Error()}
+		}
+		return TestConnectionResponse{Success: true, Message: "Redis 连接成功", LatencyMs: latency}
+	case "mysql":
+		latency, err := exec.TestMySQL(host, port, username, password, database)
+		if err != nil {
+			return TestConnectionResponse{Success: false, Message: "MySQL 连接失败: " + err.Error()}
+		}
+		return TestConnectionResponse{Success: true, Message: "MySQL 连接成功", LatencyMs: latency}
+	case "tdengine":
+		latency, err := exec.TestTDengine(host, port, username, password, database)
+		if err != nil {
+			return TestConnectionResponse{Success: false, Message: "TDengine 连接失败: " + err.Error()}
+		}
+		return TestConnectionResponse{Success: true, Message: "TDengine 连接成功", LatencyMs: latency}
+	default:
 		return TestConnectionResponse{Success: false, Message: "该连接类型暂不支持测试（将在后续版本支持）"}
 	}
-	latency, err := exec.TestSSH(host, port, username, authMethod, password, privateKey, privateKeyPath, passphrase)
-	if err != nil {
-		return TestConnectionResponse{Success: false, Message: "SSH 连接失败: " + err.Error()}
-	}
-	return TestConnectionResponse{Success: true, Message: "SSH 连接成功", LatencyMs: latency}
 }

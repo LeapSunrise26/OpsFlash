@@ -3,6 +3,9 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as exec$0 from "./exec/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as tunnel$0 from "./tunnel/models.js";
 
 /**
@@ -46,7 +49,7 @@ export interface Command {
     "createdAt": string;
 
     /**
-     * "terminal" | "ssh"
+     * "terminal" | "ssh" | "redis" | "mysql" | "tdengine"
      */
     "mode": string;
 
@@ -88,14 +91,14 @@ export interface Connection {
     "name": string;
 
     /**
-     * ssh
+     * ssh | redis | mysql | tdengine
      */
     "type": string;
     "host": string;
     "port": number;
 
     /**
-     * SSH 用户名
+     * ssh/mysql/tdengine 使用
      */
     "username": string;
 
@@ -119,6 +122,11 @@ export interface Connection {
      * 私钥口令（加密存储）
      */
     "passphrase": string;
+
+    /**
+     * redis DB 索引 / mysql、tdengine 库名
+     */
+    "database": string;
     "remark": string;
 
     /**
@@ -160,7 +168,7 @@ export interface CreateCommandRequest {
     "environmentId": number;
 
     /**
-     * "terminal" | "ssh"
+     * "terminal" | "ssh" | "redis" | "mysql" | "tdengine"
      */
     "mode": string;
 
@@ -182,6 +190,7 @@ export interface CreateConnectionRequest {
     "privateKey": string;
     "privateKeyPath": string;
     "passphrase": string;
+    "database": string;
     "remark": string;
 }
 
@@ -528,6 +537,12 @@ export interface RunCommandRequest {
 export interface RunCommandResponse {
     "success": boolean;
     "output": string;
+
+    /**
+     * "" | "text" | "table"（数据库查询类返回表格）
+     */
+    "resultType": string;
+    "result": exec$0.QueryResult | null;
     "message": string;
 }
 
@@ -706,6 +721,7 @@ export interface TestConnectionConfigRequest {
     "privateKey": string;
     "privateKeyPath": string;
     "passphrase": string;
+    "database": string;
 }
 
 export interface TestConnectionRequest {
@@ -867,6 +883,7 @@ export interface UpdateConnectionRequest {
     "privateKey": string;
     "privateKeyPath": string;
     "passphrase": string;
+    "database": string;
     "remark": string;
 }
 

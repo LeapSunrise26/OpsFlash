@@ -33,15 +33,24 @@ const deleteMsg = ref('')
 const typeTabs = [
   { value: '', label: '全部' },
   { value: 'ssh', label: 'SSH' },
+  { value: 'redis', label: 'Redis' },
+  { value: 'mysql', label: 'MySQL' },
+  { value: 'tdengine', label: 'TAOS' },
 ]
 
 const typeLabels: Record<string, string> = {
   ssh: 'SSH',
+  redis: 'Redis',
+  mysql: 'MySQL',
+  tdengine: 'TAOS',
 }
 
 // 类型默认端口
 const typeDefaultPort: Record<string, number> = {
   ssh: 22,
+  redis: 6379,
+  mysql: 3306,
+  tdengine: 6041, // REST 接口（taosAdapter）
 }
 
 // ==================== 计算属性 ====================
@@ -56,12 +65,19 @@ const stats = computed(() => {
 })
 
 function connDisplayName(c: Connection): string {
-  return c.username ? `${c.username}@${c.host}:${c.port}` : `${c.host}:${c.port}`
+  if (c.type === 'ssh') {
+    return c.username ? `${c.username}@${c.host}:${c.port}` : `${c.host}:${c.port}`
+  }
+  return `${c.host}:${c.port}`
 }
 
 function authDesc(c: Connection): string {
-  if (c.authMethod === 'key') return c.hasSecret ? '密钥登录' : '密钥（未配置）'
-  return c.hasSecret ? '密码登录' : '密码（未配置）'
+  if (c.type === 'ssh') {
+    if (c.authMethod === 'key') return c.hasSecret ? '密钥登录' : '密钥（未配置）'
+    return c.hasSecret ? '密码登录' : '密码（未配置）'
+  }
+  if (c.database) return `库: ${c.database}`
+  return ''
 }
 
 // ==================== 加载 ====================
@@ -101,8 +117,14 @@ function emptyForm(): Record<string, any> {
     privateKey: '',
     privateKeyPath: '',
     passphrase: '',
+    database: '',
     remark: '',
   }
+}
+
+// 切换连接类型时重置端口为类型默认值
+function onTypeChange() {
+  form.value.port = typeDefaultPort[form.value.type] || 22
 }
 
 function openAddModal() {
@@ -127,6 +149,7 @@ function openEditModal(c: Connection) {
     privateKey: '',
     privateKeyPath: c.privateKeyPath || '',
     passphrase: '',
+    database: c.database || '',
     remark: c.remark || '',
   }
   formError.value = ''
@@ -157,11 +180,12 @@ async function saveConnection() {
     host: form.value.host.trim(),
     port: Number(form.value.port) || typeDefaultPort[form.value.type],
     username: form.value.username.trim(),
-    authMethod: form.value.authMethod,
+    authMethod: form.value.type === 'ssh' ? form.value.authMethod : '',
     password: form.value.password,
     privateKey: form.value.privateKey,
     privateKeyPath: form.value.privateKeyPath.trim(),
     passphrase: form.value.passphrase,
+    database: form.value.database.trim(),
     remark: form.value.remark.trim(),
   }
   try {
@@ -200,6 +224,7 @@ async function testConnection() {
         privateKey: form.value.privateKey,
         privateKeyPath: form.value.privateKeyPath.trim(),
         passphrase: form.value.passphrase,
+        database: form.value.database.trim(),
       })
     }
     if (res.success) {
@@ -348,7 +373,7 @@ onMounted(() => {
             <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <p class="conn-empty-text">暂无连接，点击「添加连接」创建 SSH 服务器等连接信息</p>
+        <p class="conn-empty-text">暂无连接，点击「添加连接」创建 SSH 服务器、Redis / MySQL / TDengine 等连接信息</p>
       </div>
 
       <!-- 加载中 -->
@@ -371,6 +396,22 @@ onMounted(() => {
             <input v-model="form.name" type="text" class="form-input" placeholder="如：生产服务器-01" />
           </div>
 
+          <!-- 连接类型选择 -->
+          <div class="form-group">
+            <label class="form-label">连接类型 <span class="required">*</span></label>
+            <div class="conn-type-selector">
+              <label
+                v-for="t in typeTabs.filter(t => t.value !== '')"
+                :key="t.value"
+                class="conn-type-option"
+                :class="{ 'conn-type-option-active': form.type === t.value }"
+              >
+                <input v-model="form.type" type="radio" :value="t.value" class="conn-type-radio" @change="onTypeChange" />
+                <span>{{ t.label }}</span>
+              </label>
+            </div>
+          </div>
+
           <div class="form-row">
             <div class="form-group form-group-flex">
               <label class="form-label">主机地址 <span class="required">*</span></label>
@@ -382,43 +423,61 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- SSH 专属字段（第一阶段仅支持 SSH） -->
-          <div class="form-group">
-            <label class="form-label">用户名 <span class="required">*</span></label>
-            <input v-model="form.username" type="text" class="form-input" placeholder="root / openflashuser" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">认证方式</label>
-            <div class="conn-auth-selector">
-              <label class="conn-auth-option" :class="{ 'conn-auth-option-active': form.authMethod === 'password' }">
-                <input v-model="form.authMethod" type="radio" value="password" class="conn-type-radio" />
-                <span>账号/密码</span>
+          <!-- SSH 专属字段 -->
+          <template v-if="form.type === 'ssh'">
+            <div class="form-group">
+              <label class="form-label">用户名 <span class="required">*</span></label>
+              <input v-model="form.username" type="text" class="form-input" placeholder="root / openflashuser" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">认证方式</label>
+              <div class="conn-auth-selector">
+                <label class="conn-auth-option" :class="{ 'conn-auth-option-active': form.authMethod === 'password' }">
+                  <input v-model="form.authMethod" type="radio" value="password" class="conn-type-radio" />
+                  <span>账号/密码</span>
+                </label>
+                <label class="conn-auth-option" :class="{ 'conn-auth-option-active': form.authMethod === 'key' }">
+                  <input v-model="form.authMethod" type="radio" value="key" class="conn-type-radio" />
+                  <span>密钥（免密）</span>
+                </label>
+              </div>
+            </div>
+            <div v-if="form.authMethod === 'password'" class="form-group">
+              <label class="form-label">
+                密码 <span v-if="!isEdit" class="required">*</span>
+                <span v-if="isEdit" class="form-hint-inline">（留空保持不变）</span>
               </label>
-              <label class="conn-auth-option" :class="{ 'conn-auth-option-active': form.authMethod === 'key' }">
-                <input v-model="form.authMethod" type="radio" value="key" class="conn-type-radio" />
-                <span>密钥（免密）</span>
-              </label>
+              <input v-model="form.password" type="password" class="form-input" placeholder="登录密码" />
             </div>
-          </div>
-          <div v-if="form.authMethod === 'password'" class="form-group">
-            <label class="form-label">
-              密码 <span v-if="!isEdit" class="required">*</span>
-              <span v-if="isEdit" class="form-hint-inline">（留空保持不变）</span>
-            </label>
-            <input v-model="form.password" type="password" class="form-input" placeholder="登录密码" />
-          </div>
-          <template v-else>
-            <div class="form-group">
-              <label class="form-label">私钥内容（PEM）</label>
-              <textarea v-model="form.privateKey" class="form-textarea" rows="3" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+            <template v-else>
+              <div class="form-group">
+                <label class="form-label">私钥内容（PEM）</label>
+                <textarea v-model="form.privateKey" class="form-textarea" rows="3" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">或私钥文件路径</label>
+                <input v-model="form.privateKeyPath" type="text" class="form-input" placeholder="C:\Users\xxx\.ssh\id_rsa（留空使用默认 ~/.ssh）" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">私钥口令（可选）</label>
+                <input v-model="form.passphrase" type="password" class="form-input" placeholder="加密私钥的 passphrase" />
+              </div>
+            </template>
+          </template>
+
+          <!-- redis / mysql / tdengine 数据库专属字段 -->
+          <template v-if="form.type !== 'ssh'">
+            <div v-if="form.type !== 'redis'" class="form-group">
+              <label class="form-label">用户名</label>
+              <input v-model="form.username" type="text" class="form-input" :placeholder="form.type === 'mysql' ? 'root' : 'root'" />
             </div>
             <div class="form-group">
-              <label class="form-label">或私钥文件路径</label>
-              <input v-model="form.privateKeyPath" type="text" class="form-input" placeholder="C:\Users\xxx\.ssh\id_rsa（留空使用默认 ~/.ssh）" />
+              <label class="form-label">密码</label>
+              <input v-model="form.password" type="password" class="form-input" placeholder="连接密码" />
             </div>
             <div class="form-group">
-              <label class="form-label">私钥口令（可选）</label>
-              <input v-model="form.passphrase" type="password" class="form-input" placeholder="加密私钥的 passphrase" />
+              <label class="form-label">{{ form.type === 'redis' ? 'DB 索引' : '数据库名' }}</label>
+              <input v-model="form.database" type="text" class="form-input" :placeholder="form.type === 'redis' ? '0' : '如：test_db'" />
             </div>
           </template>
 

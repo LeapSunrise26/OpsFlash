@@ -59,6 +59,9 @@ const typeLabels: Record<string, string> = {
 const modeLabels: Record<string, string> = {
   terminal: '本地',
   ssh: 'SSH',
+  redis: 'Redis',
+  mysql: 'MySQL',
+  tdengine: 'TAOS',
 }
 
 const interpreterLabels: Record<string, string> = {
