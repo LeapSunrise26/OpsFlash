@@ -110,8 +110,6 @@ task build:server   # 或 task run:server
 
 ## 文档
 
-- [连接设计](./docs/connections-design.md)
-- [隧道设计](./docs/tunnel-design.md)
 - [数据库结构](./docs/database-schema.sql)
 
 ## 软件截图
