@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -200,12 +201,112 @@ func (e *sshExecutor) StartInteractive(cmdText string) (pty.Transport, error) {
 		session: session,
 		stdin:   stdinW,
 		stdout:  stdoutR,
+		stdoutW: stdoutW,
 	}, nil
 }
 
-// StartDaemon SSH 远程守护进程暂不支持
-func (e *sshExecutor) StartDaemon(cmdText string) (*daemon.Record, error) {
-	return nil, ErrDaemonUnsupported
+// StartDaemon SSH 远程守护进程：nohup 启动 + 记录远程 PID，kill -0 查活、kill 停止
+// 远程命令交由远程 sh 解释（单引号包裹 + '\'' 转义，命令内容原样透传）；
+// nohup + 重定向 /dev/null + 后台 & → 后台进程不持有会话输出，SSH channel 正常关闭，
+// CombinedOutput 立即返回并带回远程 PID。
+func (e *sshExecutor) StartDaemon(cmdText string) (daemon.Record, error) {
+	client, err := e.dial()
+	if err != nil {
+		return nil, fmt.Errorf("SSH 连接失败: %w", err)
+	}
+
+	session, err := client.NewSession()
+	if err != nil {
+		client.Close()
+		return nil, fmt.Errorf("创建 SSH 会话失败: %w", err)
+	}
+	escaped := strings.ReplaceAll(cmdText, "'", `'\''`)
+	remote := fmt.Sprintf(`nohup sh -c '%s' >/dev/null 2>&1 & echo $!`, escaped)
+	out, runErr := session.CombinedOutput(remote)
+	session.Close()
+	if runErr != nil {
+		client.Close()
+		return nil, fmt.Errorf("启动远程守护进程失败: %w", runErr)
+	}
+	pidStr := strings.TrimSpace(string(out))
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil || pid <= 0 {
+		client.Close()
+		return nil, fmt.Errorf("启动远程守护进程失败：未获取到有效 PID（输出: %q）", pidStr)
+	}
+	slog.Info("SSH 远程守护进程已启动", "host", e.cfg.Host, "port", e.cfg.Port, "user", e.cfg.Username, "pid", pid)
+	return &sshDaemon{client: client, pid: pid}, nil
+}
+
+// sshDaemon SSH 远程守护进程运行记录（实现 daemon.Record 接口）
+type sshDaemon struct {
+	mu     sync.Mutex
+	client *ssh.Client // 复用连接：kill -0 查活 / kill 停止 / 轮询 Wait
+	pid    int         // 远程 PID
+	stderr string      // 启动阶段的远程输出（启动失败时作为错误信息）
+}
+
+func (d *sshDaemon) PID() int { return d.pid }
+
+func (d *sshDaemon) Running() bool { return d.alive() }
+
+// alive 远程进程是否存活（kill -0 <pid>，每次独立 SSH 会话，可并发调用）
+// 连接异常 ≠ 进程退出：新建会话失败时保守判活（避免网络抖动误判守护进程退出，
+// 停止时 Terminate 会明确报错，符合 hard-fail 语义）
+func (d *sshDaemon) alive() bool {
+	d.mu.Lock()
+	client := d.client
+	d.mu.Unlock()
+	if client == nil {
+		return false
+	}
+	session, err := client.NewSession()
+	if err != nil {
+		slog.Warn("SSH 守护进程状态检查失败，保守判活", "pid", d.pid, "error", err)
+		return true
+	}
+	defer session.Close()
+	return session.Run(fmt.Sprintf("kill -0 %d 2>/dev/null", d.pid)) == nil
+}
+
+func (d *sshDaemon) StderrText() string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.stderr
+}
+
+// Terminate 停止远程进程：先优雅 kill，1s 后仍存活则 kill -9 强杀
+func (d *sshDaemon) Terminate() error {
+	d.mu.Lock()
+	client := d.client
+	d.mu.Unlock()
+	if client == nil {
+		return nil
+	}
+	session, err := client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+	return session.Run(fmt.Sprintf("kill %d 2>/dev/null; sleep 1; kill -9 %d 2>/dev/null; true", d.pid, d.pid))
+}
+
+// Cleanup 进程退出后关闭 SSH 连接（幂等）
+func (d *sshDaemon) Cleanup() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.client != nil {
+		_ = d.client.Close()
+		d.client = nil
+	}
+}
+
+// Wait 等待远程进程退出（轮询 kill -0，每 500ms）
+func (d *sshDaemon) Wait() error {
+	for d.alive() {
+		time.Sleep(500 * time.Millisecond)
+	}
+	return nil
 }
 
 // ==================== sshTransport：SSH 交互传输层 ====================
@@ -217,6 +318,7 @@ type sshTransport struct {
 	session *ssh.Session
 	stdin   io.WriteCloser
 	stdout  io.Reader
+	stdoutW io.Closer // stdout pipe writer：Close 时必须关闭，否则 Read 永远等不到 EOF
 	mu      sync.Mutex
 	closed  bool
 }
@@ -241,6 +343,9 @@ func (t *sshTransport) Resize(cols, rows int) error {
 }
 
 // Close 关闭会话与连接（幂等）
+// 注意：x/crypto/ssh 的 stdout copy goroutine（io.Copy(s.Stdout, s.ch)）在 channel
+// 关闭后不会关闭 stdout writer——若此处不主动关闭 stdoutW，stdoutR.Read 将永远等不到
+// EOF，读取方（runSSHStream/交互读取 goroutine）会永久阻塞。
 func (t *sshTransport) Close() error {
 	t.mu.Lock()
 	if t.closed {
@@ -252,6 +357,10 @@ func (t *sshTransport) Close() error {
 
 	t.stdin.Close()
 	_ = t.session.Close()
+	// 让 stdoutR.Read 返回 EOF（x/crypto/ssh 不会替我们关闭 writer）
+	if t.stdoutW != nil {
+		_ = t.stdoutW.Close()
+	}
 	return t.client.Close()
 }
 

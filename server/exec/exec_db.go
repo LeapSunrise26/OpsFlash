@@ -162,7 +162,7 @@ func (e *redisExecutor) StartInteractive(cmdText string) (pty.Transport, error) 
 	return nil, fmt.Errorf("数据库模式不支持交互式执行")
 }
 
-func (e *redisExecutor) StartDaemon(cmdText string) (*daemon.Record, error) {
+func (e *redisExecutor) StartDaemon(cmdText string) (daemon.Record, error) {
 	return nil, ErrDaemonUnsupported
 }
 
@@ -328,7 +328,7 @@ func (e *mysqlExecutor) StartInteractive(cmdText string) (pty.Transport, error) 
 	return nil, fmt.Errorf("数据库模式不支持交互式执行")
 }
 
-func (e *mysqlExecutor) StartDaemon(cmdText string) (*daemon.Record, error) {
+func (e *mysqlExecutor) StartDaemon(cmdText string) (daemon.Record, error) {
 	return nil, ErrDaemonUnsupported
 }
 

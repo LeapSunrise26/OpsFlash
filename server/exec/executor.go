@@ -21,9 +21,9 @@ type Executor interface {
 	// StartInteractive 交互式启动：返回符合 pty.Transport 接口的传输层
 	StartInteractive(cmdText string) (pty.Transport, error)
 
-	// StartDaemon 守护进程启动（terminal 支持；ssh 返回 ErrDaemonUnsupported）
-	StartDaemon(cmdText string) (*daemon.Record, error)
+	// StartDaemon 守护进程启动（terminal: 本机 Job Object；ssh: 远程 nohup+kill；db: 不支持）
+	StartDaemon(cmdText string) (daemon.Record, error)
 }
 
-// ErrDaemonUnsupported ssh 等远程模式暂不支持守护进程
+// ErrDaemonUnsupported 数据库等模式暂不支持守护进程
 var ErrDaemonUnsupported = errors.New("该执行模式暂不支持守护进程类型，请改用交互式模式或使用本地（terminal）模式")

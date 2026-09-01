@@ -92,7 +92,7 @@ type DeleteCommandResponse struct {
 // OpsService 指令库服务
 type OpsService struct {
 	mu                  sync.Mutex
-	cmdDaemons          map[int]*daemon.Record       // 守护进程命令（按命令 ID 跟踪）
+	cmdDaemons          map[int]daemon.Record       // 守护进程命令（按命令 ID 跟踪；本机 Job Object / SSH 远程）
 	interactiveSessions map[int]*interactiveSession // 交互式命令会话
 	streamSessions      map[int]*streamSession      // 非交互式流式执行会话（实时输出）
 	eventEmitter        EventEmitter                // 终端输出事件发射器（xterm 事件流，main 注入）
@@ -128,7 +128,7 @@ func (s *OpsService) emitTerminalOutput(id int, data string, done bool, exitErro
 
 func (s *OpsService) ensureMap() {
 	if s.cmdDaemons == nil {
-		s.cmdDaemons = make(map[int]*daemon.Record)
+		s.cmdDaemons = make(map[int]daemon.Record)
 	}
 	if s.interactiveSessions == nil {
 		s.interactiveSessions = make(map[int]*interactiveSession)

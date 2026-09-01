@@ -24,8 +24,8 @@ import (
 //   - 应用退出时：Job 句柄随进程关闭，KILL_ON_JOB_CLOSE 自动终止 Job 内所有进程
 // 若 Job 不可用（如应用本身位于受限 Job 中），降级为 taskkill /T /F。
 
-// Record 守护进程运行记录（跨平台）
-type Record struct {
+// LocalRecord 本机守护进程运行记录（Windows: Job Object 进程树管理）
+type LocalRecord struct {
 	cmd       *exec.Cmd
 	stderr    *strings.Builder // 启动失败时捕获的错误输出
 	jobHandle syscall.Handle   // Windows: Job Object 句柄
@@ -33,14 +33,14 @@ type Record struct {
 
 // StartDaemonProcess 启动守护进程并放入 Job Object 管理
 // interpreter 透传给 cmd 包：cmd 走 /s /c 包装，powershell 走 -EncodedCommand
-func StartDaemonProcess(cmdText string, interpreter string) (*Record, error) {
+func StartDaemonProcess(cmdText string, interpreter string) (*LocalRecord, error) {
 	stderr := &strings.Builder{}
 	return StartProcess(cmdText, interpreter, nil, stderr)
 }
 
 // StartProcess 启动进程并放入 Job Object 管理，支持指定 stdout/stderr 输出流
 // （流式执行场景传入管道；守护进程场景传 nil / stderr builder）
-func StartProcess(cmdText string, interpreter string, stdout, stderr io.Writer) (*Record, error) {
+func StartProcess(cmdText string, interpreter string, stdout, stderr io.Writer) (*LocalRecord, error) {
 	command := cmd.BuildCmdScript(interpreter, cmdText)
 	command.Stdout = stdout
 	command.Stderr = stderr
@@ -49,7 +49,7 @@ func StartProcess(cmdText string, interpreter string, stdout, stderr io.Writer) 
 		return nil, err
 	}
 
-	rec := &Record{cmd: command}
+	rec := &LocalRecord{cmd: command}
 	if sb, ok := stderr.(*strings.Builder); ok {
 		rec.stderr = sb
 	}
@@ -59,7 +59,7 @@ func StartProcess(cmdText string, interpreter string, stdout, stderr io.Writer) 
 
 // assignJobObject 将已启动的进程加入 KILL_ON_JOB_CLOSE 的 Job Object
 // 失败时降级（停止守护进程时改用 taskkill），不阻断主流程
-func assignJobObject(command *exec.Cmd, rec *Record) {
+func assignJobObject(command *exec.Cmd, rec *LocalRecord) {
 	// 创建 Job Object 并设置 KILL_ON_JOB_CLOSE
 	job, err := windows.CreateJobObject(nil, nil)
 	if err != nil {
@@ -96,7 +96,7 @@ func assignJobObject(command *exec.Cmd, rec *Record) {
 }
 
 // Terminate 终止守护进程的整个进程树
-func (r *Record) Terminate() error {
+func (r *LocalRecord) Terminate() error {
 	if r.cmd.Process == nil {
 		return nil
 	}
@@ -127,7 +127,7 @@ func (r *Record) Terminate() error {
 
 // Cleanup 进程退出后释放 Job 句柄
 // 关闭最后一个 Job 句柄时，KILL_ON_JOB_CLOSE 会终止 Job 内残留的子进程
-func (r *Record) Cleanup() {
+func (r *LocalRecord) Cleanup() {
 	if r.jobHandle != 0 {
 		windows.CloseHandle(windows.Handle(r.jobHandle))
 		r.jobHandle = 0
@@ -135,7 +135,7 @@ func (r *Record) Cleanup() {
 }
 
 // PID 返回进程 PID
-func (r *Record) PID() int {
+func (r *LocalRecord) PID() int {
 	if r.cmd != nil && r.cmd.Process != nil {
 		return r.cmd.Process.Pid
 	}
@@ -143,12 +143,12 @@ func (r *Record) PID() int {
 }
 
 // Running 进程是否仍在运行（ProcessState 为 nil 表示未退出）
-func (r *Record) Running() bool {
+func (r *LocalRecord) Running() bool {
 	return r.cmd != nil && r.cmd.ProcessState == nil
 }
 
 // StderrText 返回启动后捕获的错误输出
-func (r *Record) StderrText() string {
+func (r *LocalRecord) StderrText() string {
 	if r.stderr == nil {
 		return ""
 	}
@@ -156,6 +156,6 @@ func (r *Record) StderrText() string {
 }
 
 // Wait 等待进程退出
-func (r *Record) Wait() error {
+func (r *LocalRecord) Wait() error {
 	return r.cmd.Wait()
 }

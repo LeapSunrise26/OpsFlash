@@ -53,7 +53,7 @@ func (e *terminalExecutor) StartInteractive(cmdText string) (pty.Transport, erro
 }
 
 // StartDaemon 本地守护进程（Job Object 进程树管理）
-func (e *terminalExecutor) StartDaemon(cmdText string) (*daemon.Record, error) {
+func (e *terminalExecutor) StartDaemon(cmdText string) (daemon.Record, error) {
 	return daemon.StartDaemonProcess(cmdText, e.interpreter)
 }
 

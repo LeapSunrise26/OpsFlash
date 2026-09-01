@@ -212,7 +212,7 @@ func (e *tdengineExecutor) StartInteractive(cmdText string) (pty.Transport, erro
 	return nil, fmt.Errorf("数据库模式不支持交互式执行")
 }
 
-func (e *tdengineExecutor) StartDaemon(cmdText string) (*daemon.Record, error) {
+func (e *tdengineExecutor) StartDaemon(cmdText string) (daemon.Record, error) {
 	return nil, ErrDaemonUnsupported
 }
 

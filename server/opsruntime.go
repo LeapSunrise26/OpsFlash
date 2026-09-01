@@ -300,8 +300,8 @@ type GetStreamOutputRequest struct {
 //   - 会话模式（多行命令）：transport 持有交互式 shell（PTY），runSessionLines 逐行喂入，
 //     同一 shell 进程内执行 → 变量跨行共享、每行自动回显
 type streamSession struct {
-	id        int // 命令 ID（事件推送用）
-	rec       *daemon.Record // 进程模式：当前进程（Job Object 进程树）
+	id        int            // 命令 ID（事件推送用）
+	rec       daemon.Record  // 进程模式：当前进程（本机 Job Object 进程树）
 	transport pty.Transport  // 会话模式：交互式 shell 传输层
 	cancel    context.CancelFunc
 	output    []byte // 已解码的累积输出（UTF-8）
@@ -433,7 +433,11 @@ func (s *OpsService) ensureTrailingNewline(session *streamSession) {
 
 // runSSHStream SSH 非交互流式驱动：远程 PTY 整段执行，实时输出推送 + 可停止。
 // 读取链与本地一致（stripper 跨帧剥启动噪声 → sanitize 帧级兜底 → oscStripper 全流剥 OSC）。
-// 进程退出后 ConPTY/SSH 管道不保证 EOF，采用"排空到静默"结束（与 runStreamLines 一致）。
+// 结束信号 = Wait 返回 OR 输出静默超时：
+//   - SSH 远程 PTY 下「命令退出 ≠ channel 关闭」——命令衍生的后台进程（nohup/服务重启等）
+//     仍持有 PTY fd 时 sshd 不发 EOF，session.Wait() 可能永久阻塞；
+//   - 因此除 Wait 外增加「输出静默 N 秒」判定：命令输出停止即视为执行完成，强制收尾，
+//     否则前端将一直显示"运行中"只能手动点停止。
 func (s *OpsService) runSSHStream(session *streamSession, transport pty.Transport) {
 	defer func() {
 		s.ensureTrailingNewline(session)
@@ -447,13 +451,9 @@ func (s *OpsService) runSSHStream(session *streamSession, transport pty.Transpor
 	decoder := &outputDecoder{}
 	buf := make([]byte, 8192)
 	readDone := make(chan struct{})
+	dataCh := make(chan struct{}, 1) // 有数据信号：主流程据此重置静默计时
 	stripper := &noiseStripper{}
 	osc := &oscStripper{}
-	idle := time.NewTimer(time.Hour)
-	if !idle.Stop() {
-		<-idle.C
-	}
-	defer idle.Stop()
 	go func() {
 		defer close(readDone)
 		for {
@@ -466,14 +466,11 @@ func (s *OpsService) runSSHStream(session *streamSession, transport pty.Transpor
 					session.mu.Unlock()
 					s.emitTerminalOutput(session.id, data, false, "")
 				}
-				// 有数据：重置静默计时（进程退出后才有意义）
-				if !idle.Stop() {
-					select {
-					case <-idle.C:
-					default:
-					}
+				// 有新输出 → 通知主流程重置静默计时（channel 满则跳过，下轮仍会通知）
+				select {
+				case dataCh <- struct{}{}:
+				default:
 				}
-				idle.Reset(300 * time.Millisecond)
 			}
 			if rerr != nil {
 				return
@@ -481,18 +478,54 @@ func (s *OpsService) runSSHStream(session *streamSession, transport pty.Transpor
 		}
 	}()
 
-	werr := transport.Wait()
-	// 远程命令已退出：等待读取 goroutine 读完尾部输出（静默超时）或兜底超时后关闭
+	// 输出静默阈值：部署/重启类命令收尾足够，又不误杀慢输出任务（长驻任务请用交互式类型）
+	const sshIdleTimeout = 10 * time.Second
+
+	waitDone := make(chan error, 1)
+	go func() {
+		waitDone <- transport.Wait()
+	}()
+
+	idle := time.NewTimer(sshIdleTimeout)
+	if !idle.Stop() {
+		select {
+		case <-idle.C:
+		default:
+		}
+	}
+	defer idle.Stop()
+
+	var werr error
+	waiting := true
+	for waiting {
+		select {
+		case werr = <-waitDone:
+			waiting = false
+		case <-idle.C:
+			// Wait 未返回但输出已静默超时 → 判定命令已完成（PTY 被后台进程持有等），强制收尾
+			slog.Info("SSH 流式执行静默超时，判定完成", "id", session.id, "timeout", sshIdleTimeout)
+			transport.Close()
+			werr = <-waitDone
+			waiting = false
+		case <-dataCh:
+			if !idle.Stop() {
+				select {
+				case <-idle.C:
+				default:
+				}
+			}
+			idle.Reset(sshIdleTimeout)
+		}
+	}
+
+	// 排空尾部输出：读 goroutine 将因远程 channel 关闭或 Close()（关闭 stdout pipe）退出
+	transport.Close()
 	select {
 	case <-readDone:
-	case <-idle.C:
-		transport.Close()
-		<-readDone
 	case <-time.After(2 * time.Second):
-		transport.Close()
-		<-readDone
+		// 防御性兜底：不等待 readDone（读 goroutine 若仍阻塞则随会话一起丢弃，避免卡死收尾）
 	}
-	transport.Close()
+
 	session.mu.Lock()
 	if werr != nil {
 		session.exitError = werr.Error()
@@ -1156,9 +1189,12 @@ func (s *OpsService) StartDaemon(req StartDaemonRequest) ProcessResponse {
 		return ProcessResponse{Success: false, Message: "该命令不是守护进程类型，请使用运行按钮"}
 	}
 
-	// CMD 不支持多行（旧数据/直接调用兜底）
-	if err := validateScriptForInterpreter(interpreter, cmdText); err != nil {
-		return ProcessResponse{Success: false, Message: err.Error()}
+	// CMD 不支持多行——仅本地 terminal 模式适用（cmd /s /c 包装才受换行/引号影响；
+	// SSH 模式命令由远程 sh/bash 解释，不受本地 cmd 多行限制）
+	if mode == "" || mode == "terminal" {
+		if err := validateScriptForInterpreter(interpreter, cmdText); err != nil {
+			return ProcessResponse{Success: false, Message: err.Error()}
+		}
 	}
 
 	// 加载执行器（ssh 等远程模式暂不支持守护进程）
@@ -1274,7 +1310,7 @@ func (s *OpsService) StopDaemon(req StopDaemonRequest) ProcessResponse {
 // （Windows 下 Job Object 的 KILL_ON_JOB_CLOSE 也会兜底，这里显式清理更可靠）
 func (s *OpsService) Shutdown() {
 	s.mu.Lock()
-	daemons := make([]*daemon.Record, 0, len(s.cmdDaemons))
+	daemons := make([]daemon.Record, 0, len(s.cmdDaemons))
 	for id, rec := range s.cmdDaemons {
 		daemons = append(daemons, rec)
 		delete(s.cmdDaemons, id)
@@ -1350,9 +1386,12 @@ func (s *OpsService) StartInteractive(req StartInteractiveRequest) ProcessRespon
 		return ProcessResponse{Success: false, Message: "该命令不是交互式类型"}
 	}
 
-	// CMD 不支持多行（旧数据/直接调用兜底）
-	if err := validateScriptForInterpreter(interpreter, cmdText); err != nil {
-		return ProcessResponse{Success: false, Message: err.Error()}
+	// CMD 不支持多行——仅本地 terminal 模式适用（cmd /s /c 包装才受换行/引号影响；
+	// SSH 模式命令由远程 sh/bash 解释，不受本地 cmd 多行限制）
+	if mode == "" || mode == "terminal" {
+		if err := validateScriptForInterpreter(interpreter, cmdText); err != nil {
+			return ProcessResponse{Success: false, Message: err.Error()}
+		}
 	}
 
 	// 检查是否已在运行
