@@ -1,0 +1,872 @@
+/* ==================== 运维操作页面样式（暗色玻璃态，与命令库页一致） ==================== */
+
+.batch-page {
+  height: calc(100vh - 56px - 80px);
+  min-height: 480px;
+  color: var(--text);
+  user-select: none;
+  -webkit-user-select: none;
+  --wails-draggable: no-drag;
+}
+
+.batch-main {
+  display: flex;
+  gap: 16px;
+  height: 100%;
+}
+
+/* ==================== 左栏：任务列表 ==================== */
+.batch-left {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.batch-stats {
+  font-size: 12px;
+  color: #9aa6c0;
+}
+
+.batch-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #FF006E, #FF2D72);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.batch-add-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.batch-add-plus { font-size: 15px; line-height: 1; }
+
+.batch-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px 2px 8px;
+}
+
+.batch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.batch-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.batch-card-running {
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(96, 165, 250, 0.06);
+}
+
+.batch-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.batch-card-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f4f6fb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-policy-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.batch-policy-stop {
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.batch-policy-continue {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34D399;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
+.batch-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-count {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.batch-running-tag {
+  font-size: 11px;
+  color: #60A5FA;
+  animation: batch-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes batch-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.batch-card-remark {
+  margin: 0;
+  font-size: 12px;
+  color: #9aa6c0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.batch-action-btn {
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #9aa6c0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.batch-action-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4f6fb;
+}
+
+.batch-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.batch-action-run {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #34D399;
+  font-weight: 600;
+}
+
+.batch-action-run:hover:not(:disabled) {
+  background: rgba(52, 211, 153, 0.2);
+}
+
+.batch-action-stop {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #EF4444;
+  font-weight: 600;
+}
+
+.batch-action-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #EF4444;
+}
+
+.batch-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  font-size: 13px;
+  color: rgba(154, 166, 192, 0.6);
+}
+
+/* ==================== 右栏：执行结果面板 ==================== */
+.batch-right {
+  flex: 1;
+  min-width: 0;
+}
+
+.batch-result-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.batch-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.batch-result-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f4f6fb;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.batch-result-live {
+  font-size: 11px;
+  font-weight: 500;
+  color: #60A5FA;
+  animation: batch-blink 1.2s ease-in-out infinite;
+}
+
+.batch-result-stopped {
+  font-size: 11px;
+  font-weight: 500;
+  color: #FBBF24;
+}
+
+.batch-result-done {
+  font-size: 11px;
+  font-weight: 500;
+  color: #34D399;
+}
+
+.batch-result-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.batch-result-time {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.batch-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.batch-summary-item {
+  font-size: 12px;
+  color: #9aa6c0;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.batch-summary-ok { color: #34D399; }
+.batch-summary-fail { color: #EF4444; }
+.batch-summary-skip { color: rgba(255, 255, 255, 0.4); }
+.batch-summary-running { color: #60A5FA; }
+.batch-summary-time { color: rgba(255, 255, 255, 0.45); }
+
+.batch-result-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+  -webkit-user-select: text;
+  user-select: text;
+  --wails-draggable: no-drag;
+}
+
+.batch-result-empty {
+  padding: 60px 0;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(154, 166, 192, 0.6);
+}
+
+.batch-result-item {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.batch-result-status {
+  font-size: 13px;
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.batch-result-success .batch-result-status { color: #34D399; }
+.batch-result-failed .batch-result-status { color: #EF4444; }
+.batch-result-running .batch-result-status { color: #60A5FA; }
+.batch-result-running { border-color: rgba(96, 165, 250, 0.35); }
+.batch-result-skipped .batch-result-status { color: rgba(255, 255, 255, 0.35); }
+.batch-result-skipped { opacity: 0.6; }
+
+.batch-result-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #f4f6fb;
+}
+
+.batch-result-duration {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-left: auto;
+}
+
+.batch-result-detail {
+  flex-basis: 100%;
+  width: 100%;
+}
+
+.batch-result-detail pre {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #9aa6c0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.batch-result-error {
+  color: #EF4444 !important;
+}
+
+/* ==================== 弹窗表单 ==================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-box {
+  background: #141824;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 100px);
+}
+
+.modal-box-sm { width: 400px; }
+.modal-box-lg { width: 640px; }
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f4f6fb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title-warning .warning-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.2);
+  color: #FBBF24;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.modal-close:hover { color: #f4f6fb; }
+
+.modal-body {
+  padding: 12px 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.form-group { margin-bottom: 10px; }
+
+.form-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #9aa6c0;
+}
+
+.required { color: #FF2D72; }
+
+.form-hint-inline {
+  font-size: 11px;
+  color: rgba(154, 166, 192, 0.6);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #f4f6fb;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-input:focus { border-color: rgba(255, 45, 114, 0.6); }
+.form-input::placeholder { color: rgba(154, 166, 192, 0.5); }
+
+.form-error { margin: 6px 0 0; font-size: 12px; color: #EF4444; }
+
+/* 错误策略选择器 */
+.batch-policy-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.batch-policy-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #9aa6c0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.batch-policy-option:hover { background: rgba(255, 255, 255, 0.07); }
+
+.batch-policy-option small {
+  font-size: 11px;
+  color: rgba(154, 166, 192, 0.6);
+}
+
+.batch-policy-option-active {
+  background: rgba(255, 45, 114, 0.1);
+  border-color: rgba(255, 45, 114, 0.5);
+  color: #FF77B0;
+  font-weight: 600;
+}
+
+.batch-type-radio {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.batch-type-radio:checked { border-color: #FF2D72; }
+.batch-type-radio:checked::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: #FF2D72;
+}
+
+/* 命令选择器 */
+.batch-cmd-picker {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.batch-cmd-group { margin-bottom: 4px; }
+
+.batch-cmd-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.cmd-env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FF2D72;
+  flex-shrink: 0;
+}
+
+.batch-cmd-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #9aa6c0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.batch-cmd-item:hover { background: rgba(255, 255, 255, 0.06); }
+
+.batch-cmd-item input[type='checkbox'] {
+  accent-color: #FF2D72;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.batch-cmd-item-checked {
+  background: rgba(255, 45, 114, 0.08);
+  color: #f4f6fb;
+}
+
+.batch-cmd-item-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.batch-cmd-item-disabled input { cursor: not-allowed; }
+
+.batch-cmd-item-tip {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: #FBBF24;
+}
+
+/* 已选命令列表 */
+.batch-selected-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.batch-selected-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 13px;
+  color: #f4f6fb;
+}
+
+.batch-selected-idx {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 45, 114, 0.15);
+  color: #FF77B0;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.batch-selected-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.batch-selected-env {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+}
+
+.batch-selected-ops { display: flex; gap: 4px; }
+
+.batch-selected-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #9aa6c0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.batch-selected-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f4f6fb;
+}
+
+.batch-selected-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.batch-selected-del:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* 按钮 */
+.btn-cancel,
+.btn-primary,
+.btn-danger {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.btn-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #9aa6c0;
+}
+
+.btn-cancel:hover { background: rgba(255, 255, 255, 0.1); color: #f4f6fb; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #FF006E, #FF2D72);
+  color: #fff;
+}
+
+.btn-primary:hover { filter: brightness(1.15); }
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #EF4444;
+}
+
+.btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+
+/* 确认弹窗 */
+.confirm-text {
+  margin: 6px 0 12px;
+  font-size: 14px;
+  color: #f4f6fb;
+}
+
+.confirm-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  font-size: 12.5px;
+  color: #FBBF24;
+  line-height: 1.5;
+}
+
+.warning-icon-small {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.2);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ==================== 流程编排扩展样式 ==================== */
+/* 脚本步骤选择器 */
+.batch-script-empty {
+  padding: 12px;
+  border: 1px dashed rgba(255,255,255,0.15);
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+}
+.batch-script-picker {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 6px;
+}
+.batch-script-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+}
+.batch-script-item:hover { background: rgba(255,255,255,0.05); }
+.batch-script-item-checked { background: rgba(167,139,250,0.12); }
+.batch-script-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batch-script-item-type {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.batch-script-item-type.type-bat { background: rgba(96,165,250,0.16); color: #60A5FA; }
+.batch-script-item-type.type-ps1 { background: rgba(167,139,250,0.16); color: #B794F4; }
+.batch-script-item-type.type-sh  { background: rgba(52,211,153,0.16); color: #4ADE80; }
+
+/* 已选步骤（含脚本参数输入） */
+.batch-selected-kind {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.kind-command { background: rgba(96,165,250,0.16); color: #60A5FA; }
+.kind-script  { background: rgba(167,139,250,0.16); color: #B794F4; }
+.batch-selected-args {
+  flex: 1;
+  min-width: 80px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: #e6e9f0;
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
+.batch-selected-args:focus { border-color: rgba(167,139,250,0.5); }
+.batch-selected-args::placeholder { color: rgba(255,255,255,0.25); }
+
+/* 执行参数弹窗 */
+.batch-params-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #e6e9f0;
+  font-size: 13px;
+  padding: 10px;
+  outline: none;
+  resize: vertical;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
+.batch-params-textarea:focus { border-color: rgba(255,0,110,0.5); }
+
+/* 结果面板：退出码 / 类型 */
+.batch-result-kind {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(167,139,250,0.16);
+  color: #B794F4;
+  flex-shrink: 0;
+}
+.batch-result-exitcode {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.exit-ok  { background: rgba(52,211,153,0.12); color: #34D399; }
+.exit-fail { background: rgba(239,68,68,0.12); color: #EF4444; }

@@ -25,7 +25,7 @@ import (
 //   - 非交互：CombinedOutput（stdout+stderr 合并，60s 超时由调用方 ctx 控制）
 //   - 交互式：远程请求 PTY（xterm），stdin/stdout 双向管道，实现 pty.Transport
 //     （前端 300ms 轮询逻辑零改动）
-//   - 守护进程：暂不支持（ErrDaemonUnsupported）
+//   - 守护进程：远程 nohup 启动 + kill -0 查活 + kill 停止（sshDaemon）
 
 // SSHConfig SSH 连接配置（凭据已解密，由 server 包从 Connection 构造）
 type SSHConfig struct {

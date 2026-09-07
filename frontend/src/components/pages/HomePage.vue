@@ -12,13 +12,23 @@ const emit = defineEmits<{
   <section class="section">
     <h3 class="section-title">快捷入口</h3>
     <div class="shortcut-row">
-      <div class="shortcut-card" @click="emit('navigate', 'ops')">
+      <div class="shortcut-card" @click="emit('navigate', 'batch')">
         <div class="shortcut-icon shortcut-icon-blue">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="shortcut-info">
+          <span class="shortcut-title">运维操作</span>
+          <span class="shortcut-desc">组合多条命令按策略一键执行</span>
+        </div>
+        <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="shortcut-card" @click="emit('navigate', 'ops')">
+        <div class="shortcut-icon shortcut-icon-green">
           <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="6" rx="2" stroke="currentColor" stroke-width="2"/><rect x="2" y="15" width="20" height="6" rx="2" stroke="currentColor" stroke-width="2"/><line x1="6" y1="6" x2="6.01" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="18" x2="6.01" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
         <div class="shortcut-info">
-          <span class="shortcut-title">指令库</span>
-          <span class="shortcut-desc">命令管理、本地/SSH 执行与守护进程</span>
+          <span class="shortcut-title">命令库</span>
+          <span class="shortcut-desc">命令执行、交互终端与守护进程</span>
         </div>
         <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
@@ -28,27 +38,7 @@ const emit = defineEmits<{
         </div>
         <div class="shortcut-info">
           <span class="shortcut-title">连接管理</span>
-          <span class="shortcut-desc">维护 SSH 连接与凭据</span>
-        </div>
-        <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <div class="shortcut-card" @click="emit('navigate', 'tunnels')">
-        <div class="shortcut-icon shortcut-icon-purple">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-9 4 18 3-9h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="shortcut-info">
-          <span class="shortcut-title">隧道管理</span>
-          <span class="shortcut-desc">SSH 端口转发一键启停</span>
-        </div>
-        <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <div class="shortcut-card" @click="emit('navigate', 'users')">
-        <div class="shortcut-icon shortcut-icon-green">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="shortcut-info">
-          <span class="shortcut-title">用户管理</span>
-          <span class="shortcut-desc">账号、角色与密码管理</span>
+          <span class="shortcut-desc">维护 SSH、Redis、MySQL 等连接</span>
         </div>
         <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
@@ -74,7 +64,7 @@ const emit = defineEmits<{
         </div>
         <div class="info-text">
           <span class="info-label">版本</span>
-          <span class="info-value">0.3.0</span>
+          <span class="info-value">0.5.0</span>
         </div>
       </div>
       <div class="info-item">

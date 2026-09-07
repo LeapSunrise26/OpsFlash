@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ConnService } from '../../../bindings/opsflash/server'
-import { Connection } from '../../../bindings/opsflash/server/models'
+import { ConnService, TunnelService } from '../../../bindings/opsflash/server'
+import { Connection, Tunnel } from '../../../bindings/opsflash/server/models'
 
 const props = defineProps<{ token: string }>()
 
@@ -11,6 +11,7 @@ const emit = defineEmits<{
 
 // ==================== 数据状态 ====================
 const connections = ref<Connection[]>([])
+const tunnels = ref<Tunnel[]>([])
 const loading = ref(false)
 const error = ref('')
 const activeType = ref('') // '' = 全部
@@ -103,6 +104,24 @@ function selectType(t: string) {
   loadConnections()
 }
 
+// 加载隧道列表（用于连接表单的「通过隧道访问」下拉框）
+async function loadTunnels() {
+  try {
+    const res = await TunnelService.GetTunnels({ token: props.token, connectionId: 0 })
+    if (res.success) {
+      tunnels.value = res.tunnels || []
+    }
+  } catch (e) {
+    console.error('获取隧道列表失败', e)
+  }
+}
+
+// 隧道名称查询（用于卡片显示）
+function tunnelNameById(id: number): string {
+  const t = tunnels.value.find(t => t.id === id)
+  return t ? t.name : `隧道#${id}`
+}
+
 // ==================== 弹窗表单 ====================
 function emptyForm(): Record<string, any> {
   return {
@@ -118,13 +137,10 @@ function emptyForm(): Record<string, any> {
     privateKeyPath: '',
     passphrase: '',
     database: '',
+    defaultCommand: '',
+    tunnelId: 0,
     remark: '',
   }
-}
-
-// 切换连接类型时重置端口为类型默认值
-function onTypeChange() {
-  form.value.port = typeDefaultPort[form.value.type] || 22
 }
 
 function openAddModal() {
@@ -150,11 +166,17 @@ function openEditModal(c: Connection) {
     privateKeyPath: c.privateKeyPath || '',
     passphrase: '',
     database: c.database || '',
+    defaultCommand: c.defaultCommand || '',
+    tunnelId: c.tunnelId || 0,
     remark: c.remark || '',
   }
   formError.value = ''
   testResult.value = null
   showModal.value = true
+}
+
+function onTypeChange() {
+  form.value.port = typeDefaultPort[form.value.type] || 22
 }
 
 function validateForm(): string {
@@ -186,6 +208,8 @@ async function saveConnection() {
     privateKeyPath: form.value.privateKeyPath.trim(),
     passphrase: form.value.passphrase,
     database: form.value.database.trim(),
+    defaultCommand: form.value.defaultCommand.trim(),
+    tunnelId: Number(form.value.tunnelId) || 0,
     remark: form.value.remark.trim(),
   }
   try {
@@ -280,6 +304,7 @@ async function deleteConnection() {
 
 onMounted(() => {
   loadConnections()
+  loadTunnels()
 })
 </script>
 
@@ -333,6 +358,12 @@ onMounted(() => {
         <div class="conn-meta">
           <span v-if="authDesc(c)" class="conn-auth">{{ authDesc(c) }}</span>
           <span v-else class="conn-auth-muted">无凭据</span>
+          <span v-if="c.tunnelId" class="conn-tunnel-badge" title="该连接通过隧道访问">
+            <svg viewBox="0 0 24 24" fill="none" width="10" height="10">
+              <path d="M3 12h4l3-9 4 18 3-9h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            {{ tunnelNameById(c.tunnelId) }}
+          </span>
         </div>
         <p v-if="c.remark" class="conn-remark">{{ c.remark }}</p>
         <div class="conn-card-footer">
@@ -373,7 +404,7 @@ onMounted(() => {
             <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <p class="conn-empty-text">暂无连接，点击「添加连接」创建 SSH 服务器、Redis / MySQL / TDengine 等连接信息</p>
+        <p class="conn-empty-text">暂无连接，点击「添加连接」创建 SSH 服务器等连接信息</p>
       </div>
 
       <!-- 加载中 -->
@@ -396,7 +427,6 @@ onMounted(() => {
             <input v-model="form.name" type="text" class="form-input" placeholder="如：生产服务器-01" />
           </div>
 
-          <!-- 连接类型选择 -->
           <div class="form-group">
             <label class="form-label">连接类型 <span class="required">*</span></label>
             <div class="conn-type-selector">
@@ -465,8 +495,8 @@ onMounted(() => {
             </template>
           </template>
 
-          <!-- redis / mysql / tdengine 数据库专属字段 -->
-          <template v-if="form.type !== 'ssh'">
+          <!-- redis / 数据库专属字段 -->
+          <template v-else>
             <div v-if="form.type !== 'redis'" class="form-group">
               <label class="form-label">用户名</label>
               <input v-model="form.username" type="text" class="form-input" :placeholder="form.type === 'mysql' ? 'root' : 'root'" />
@@ -478,6 +508,16 @@ onMounted(() => {
             <div class="form-group">
               <label class="form-label">{{ form.type === 'redis' ? 'DB 索引' : '数据库名' }}</label>
               <input v-model="form.database" type="text" class="form-input" :placeholder="form.type === 'redis' ? '0' : '如：test_db'" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">通过隧道访问（可选）</label>
+              <select v-model="form.tunnelId" class="form-select">
+                <option :value="0">不使用隧道（直连）</option>
+                <option v-for="t in tunnels" :key="t.id" :value="t.id">
+                  {{ t.name }}（{{ t.localHost }}:{{ t.localPort }}）
+                </option>
+              </select>
+              <p class="form-hint">选择 local 类型隧道后，连接将自动走隧道本地端口访问内网数据库</p>
             </div>
           </template>
 

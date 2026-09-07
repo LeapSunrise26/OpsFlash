@@ -21,7 +21,7 @@ type Executor interface {
 	// StartInteractive 交互式启动：返回符合 pty.Transport 接口的传输层
 	StartInteractive(cmdText string) (pty.Transport, error)
 
-	// StartDaemon 守护进程启动（terminal: 本机 Job Object；ssh: 远程 nohup+kill；db: 不支持）
+	// StartDaemon 守护进程启动（terminal: 本机 Job Object/进程组；ssh: 远程 nohup+kill；db: 不支持）
 	StartDaemon(cmdText string) (daemon.Record, error)
 }
 

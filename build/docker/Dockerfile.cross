@@ -13,17 +13,32 @@
 #   docker run --rm -v $(pwd):/app wails-cross windows amd64
 #   docker run --rm -v $(pwd):/app wails-cross windows arm64
 
-FROM golang:1.26-bookworm
+# Debian 13 provides the GTK >= 4.14 API baseline used by the default Linux backend.
+FROM golang:1.26-trixie
 
 ARG TARGETARCH
 ARG GARBLE_VERSION=v0.16.0
+# 1. 清空所有可能存在的旧源配置（避免冲突）
+RUN rm -rf /etc/apt/sources.list /etc/apt/sources.list.d/*
 
+# 2. 写入 Debian 13 (trixie) 的阿里云镜像源
+RUN echo "deb https://mirrors.aliyun.com/debian/ trixie main contrib non-free non-free-firmware" > /etc/apt/sources.list \
+    && echo "deb https://mirrors.aliyun.com/debian/ trixie-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list \
+    && echo "deb https://mirrors.aliyun.com/debian/ trixie-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list \
+    && echo "deb https://mirrors.aliyun.com/debian-security/ trixie-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
+    
 # Install base tools, GCC, and GTK/WebKit dev packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl xz-utils python3 nodejs npm pkg-config gcc libc6-dev \
     libgtk-3-dev libwebkit2gtk-4.1-dev \
     libgtk-4-dev libwebkitgtk-6.0-dev \
+    && pkg-config --atleast-version=4.14 gtk4 \
+    && pkg-config --exists webkitgtk-6.0 \
+    && pkg-config --exists gtk+-3.0 \
+    && pkg-config --exists webkit2gtk-4.1 \
     && rm -rf /var/lib/apt/lists/*
+
+ENV GOPROXY=https://goproxy.cn,direct
 
 RUN go install mvdan.cc/garble@${GARBLE_VERSION}
 
@@ -31,22 +46,32 @@ RUN go install mvdan.cc/garble@${GARBLE_VERSION}
 # The SHA-256 is fetched from Zig's official download manifest and verified
 # before extraction to protect against MITM or corrupted downloads.
 ARG ZIG_VERSION=0.14.0
+# RUN ZIG_ARCH=$(case "${TARGETARCH}" in arm64) echo "aarch64" ;; *) echo "x86_64" ;; esac) && \
+#     ZIG_FILE="zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" && \
+#     curl -fSL "https://ziglang.org/download/${ZIG_VERSION}/${ZIG_FILE}" -o "/tmp/${ZIG_FILE}" && \
+#     EXPECTED=$(curl -fsSL "https://ziglang.org/download/index.json" | \
+#         python3 -c "import json,sys; d=json.load(sys.stdin); print(d[sys.argv[1]][sys.argv[2]+'-linux']['shasum'])" \
+#         "${ZIG_VERSION}" "${ZIG_ARCH}") && \
+#     echo "${EXPECTED}  /tmp/${ZIG_FILE}" | sha256sum -c - && \
+#     tar -xJ -f "/tmp/${ZIG_FILE}" -C /opt && \
+#     rm "/tmp/${ZIG_FILE}" && \
+#     ln -s /opt/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}/zig /usr/local/bin/zig
+COPY zig-linux-x86_64-${ZIG_VERSION}.tar.xz /tmp/zig-linux-x86_64-${ZIG_VERSION}.tar.xz
 RUN ZIG_ARCH=$(case "${TARGETARCH}" in arm64) echo "aarch64" ;; *) echo "x86_64" ;; esac) && \
     ZIG_FILE="zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" && \
-    curl -fSL "https://ziglang.org/download/${ZIG_VERSION}/${ZIG_FILE}" -o "/tmp/${ZIG_FILE}" && \
-    EXPECTED=$(curl -fsSL "https://ziglang.org/download/index.json" | \
-        python3 -c "import json,sys; d=json.load(sys.stdin); print(d[sys.argv[1]][sys.argv[2]+'-linux']['shasum'])" \
-        "${ZIG_VERSION}" "${ZIG_ARCH}") && \
-    echo "${EXPECTED}  /tmp/${ZIG_FILE}" | sha256sum -c - && \
     tar -xJ -f "/tmp/${ZIG_FILE}" -C /opt && \
-    rm "/tmp/${ZIG_FILE}" && \
-    ln -s /opt/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}/zig /usr/local/bin/zig
+    ln -s /opt/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}/zig /usr/local/bin/zig && \
+    rm "/tmp/${ZIG_FILE}"
 
 # Download macOS SDK (required for darwin targets)
 ARG MACOS_SDK_VERSION=14.5
-RUN curl -L "https://github.com/joseluisq/macosx-sdks/releases/download/${MACOS_SDK_VERSION}/MacOSX${MACOS_SDK_VERSION}.sdk.tar.xz" \
-    | tar -xJ -C /opt \
-    && mv /opt/MacOSX${MACOS_SDK_VERSION}.sdk /opt/macos-sdk
+# RUN curl -L "https://github.com/joseluisq/macosx-sdks/releases/download/${MACOS_SDK_VERSION}/MacOSX${MACOS_SDK_VERSION}.sdk.tar.xz" \
+#     | tar -xJ -C /opt \
+#     && mv /opt/MacOSX${MACOS_SDK_VERSION}.sdk /opt/macos-sdk
+COPY MacOSX${MACOS_SDK_VERSION}.sdk.tar.xz /tmp/MacOSX${MACOS_SDK_VERSION}.sdk.tar.xz
+RUN tar -xJ -f "/tmp/MacOSX${MACOS_SDK_VERSION}.sdk.tar.xz" -C /opt \
+    && mv /opt/MacOSX${MACOS_SDK_VERSION}.sdk /opt/macos-sdk \
+    && rm "/tmp/MacOSX${MACOS_SDK_VERSION}.sdk.tar.xz"
 
 ENV MACOS_SDK_PATH=/opt/macos-sdk
 

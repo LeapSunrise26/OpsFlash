@@ -119,7 +119,7 @@ type InteractiveInputResponse struct {
 type RunCommandResponse struct {
 	Success    bool              `json:"success"`
 	Output     string            `json:"output"`
-	ResultType string            `json:"resultType"` // "" | "text" | "table"（数据库查询类返回表格）
+	ResultType string            `json:"resultType"` // "" | "text" | "table"
 	Result     *exec.QueryResult `json:"result"`
 	Message    string            `json:"message"`
 }
@@ -183,7 +183,7 @@ func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
 
 	start := time.Now()
 
-	// 数据库类执行器（redis/mysql/tdengine）返回结构化结果，前端渲染表格
+	// 数据库类执行器（redis/mysql）返回结构化结果，前端渲染表格
 	if qex, ok := ex.(exec.QueryExecutor); ok {
 		result, qerr := qex.Query(ctx, cmdText)
 		elapsed := time.Since(start)
@@ -301,7 +301,7 @@ type GetStreamOutputRequest struct {
 //     同一 shell 进程内执行 → 变量跨行共享、每行自动回显
 type streamSession struct {
 	id        int            // 命令 ID（事件推送用）
-	rec       daemon.Record  // 进程模式：当前进程（本机 Job Object 进程树）
+	rec       daemon.Record  // 进程模式：当前进程（本机 Job Object 进程树 / SSH 远程）
 	transport pty.Transport  // 会话模式：交互式 shell 传输层
 	cancel    context.CancelFunc
 	output    []byte // 已解码的累积输出（UTF-8）
@@ -722,7 +722,7 @@ func sanitizeStartupNoise(s string) string {
 // sanitizeInteractiveNoise 交互模式专用清洗：剥"完整 ConPTY 初始化序列"、cmd 填屏、OSC 标题，
 // 以及 PowerShell 冷启动漏剥的清屏/光标显隐/定位序列。
 // **不**剥孤立的 \x1b[2J 清屏（保留用户 cls/clear 等主动清屏的真实行为——cls 输出 \x1b[2J\x1b[H，
-// 与 ConPTY 注入的 \x1b[2J\x1b[m\x1b[H 不同，reClearHome/reClearReset 不会误伤）。
+// 与 ConPTY 注入的 \x1b[2J\x1b[m\x1b[H 不同，reClearHome 不会误伤）。
 // \x1b[?25l/h（光标显隐）与 \x1b[<r>;<c>H（定位）是 PowerShell host 命令执行期间的重绘噪声，
 // 交互读取必须剥掉，否则光标状态异常导致后续输出覆盖/位置错乱（xterm 自身管理光标）。
 func sanitizeInteractiveNoise(s string) string {
@@ -906,6 +906,51 @@ func (s *OpsService) runSessionLines(session *streamSession, transport pty.Trans
 			return
 		}
 	}
+}
+
+// runSessionBatchSync 同步会话式执行多行命令（批量复用，与单条运行行为一致：共享变量 + 每行回显）。
+// kill 通道被关闭时终止会话（批量超时兜底）。返回全部行输出。
+func runSessionBatchSync(interpreter string, lines []string, kill chan struct{}) (string, error) {
+	transport, err := pty.StartShell(interpreter)
+	if err != nil {
+		return "", fmt.Errorf("启动会话失败: %w", err)
+	}
+	defer func() {
+		transport.Write([]byte("exit\r"))
+		doneCh := make(chan struct{})
+		go func() {
+			transport.Wait()
+			close(doneCh)
+		}()
+		select {
+		case <-doneCh:
+		case <-time.After(2 * time.Second):
+			transport.Kill()
+		}
+		transport.Close()
+	}()
+	// 监听 kill：终止会话以打断阻塞中的 Read
+	go func() {
+		<-kill
+		transport.Kill()
+		transport.Close()
+	}()
+
+	// 会话级单 reader + 启动输出排空（横幅/清屏序列不进入输出）
+	reader := newShellReader(transport)
+	drainReader(reader, 300*time.Millisecond)
+
+	var out strings.Builder
+	for _, line := range lines {
+		cleaned, err := feedShellLine(reader, line)
+		if cleaned != "" {
+			out.WriteString(cleaned)
+		}
+		if err != nil {
+			return out.String(), fmt.Errorf("会话执行中断: %w", err)
+		}
+	}
+	return out.String(), nil
 }
 
 // stripPrompt 剥离 shell 提示符（cmd/PS 的 "盘符:\路径>"，bash 行首 "xxx$ "）。
@@ -1197,7 +1242,7 @@ func (s *OpsService) StartDaemon(req StartDaemonRequest) ProcessResponse {
 		}
 	}
 
-	// 加载执行器（ssh 等远程模式暂不支持守护进程）
+	// 加载执行器（terminal: Job Object/进程组；ssh: 远程 nohup+kill）
 	conn, err := loadConnectionByID(connID)
 	if err != nil {
 		return ProcessResponse{Success: false, Message: err.Error()}

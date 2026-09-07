@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ScriptsService } from '../../../bindings/opsflash/server'
+import { OpsService } from '../../../bindings/opsflash/server'
 import { Environment } from '../../../bindings/opsflash/server/models'
 
 const props = defineProps<{ token: string }>()
@@ -30,7 +30,7 @@ async function loadEnvironments() {
   loading.value = true
   error.value = ''
   try {
-    const res = await ScriptsService.GetEnvironments({ token: props.token })
+    const res = await OpsService.GetEnvironments({ token: props.token })
     if (res.success) {
       environments.value = res.environments || []
     } else {
@@ -74,8 +74,8 @@ async function saveEnv() {
   }
   try {
     const res = isEdit.value
-      ? await ScriptsService.UpdateEnvironment({ token: props.token, id: form.value.id, name, key, sortOrder: form.value.sortOrder })
-      : await ScriptsService.CreateEnvironment({ token: props.token, name, key, sortOrder: form.value.sortOrder })
+      ? await OpsService.UpdateEnvironment({ token: props.token, id: form.value.id, name, key, sortOrder: form.value.sortOrder })
+      : await OpsService.CreateEnvironment({ token: props.token, name, key, sortOrder: form.value.sortOrder })
     if (res.success) {
       environments.value = res.environments || []
       showForm.value = false
@@ -105,7 +105,7 @@ async function confirmDelete() {
     return
   }
   try {
-    const res = await ScriptsService.DeleteEnvironment({ token: props.token, id: deleteTarget.value.id, targetId: migrateTargetId.value })
+    const res = await OpsService.DeleteEnvironment({ token: props.token, id: deleteTarget.value.id, targetId: migrateTargetId.value })
     if (res.success) {
       await loadEnvironments()
       showDelete.value = false

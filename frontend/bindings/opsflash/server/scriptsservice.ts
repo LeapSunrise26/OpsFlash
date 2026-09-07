@@ -15,31 +15,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
- * CreateEnvironment 创建环境（含英文 key 与排序）
- */
-export function CreateEnvironment(req: $models.CreateEnvironmentRequest): $CancellablePromise<$models.EnvironmentsResponse> {
-    return $Call.ByID(2447699823, req);
-}
-
-/**
- * DeleteEnvironment 删除环境（脚本迁移到目标环境，磁盘目录一并迁移）
- */
-export function DeleteEnvironment(req: $models.DeleteEnvironmentRequest): $CancellablePromise<$models.DeleteEnvResponse> {
-    return $Call.ByID(3705426390, req);
-}
-
-/**
  * DeleteScript 删除脚本（文件 + DB 记录）
  */
 export function DeleteScript(req: $models.DeleteScriptRequest): $CancellablePromise<$models.ScriptResponse> {
     return $Call.ByID(552363678, req);
-}
-
-/**
- * GetEnvironments 获取环境列表
- */
-export function GetEnvironments(req: $models.GetEnvironmentsRequest): $CancellablePromise<$models.EnvironmentsResponse> {
-    return $Call.ByID(1947826900, req);
 }
 
 /**
@@ -85,11 +64,4 @@ export function SaveScript(req: $models.SaveScriptRequest): $CancellablePromise<
  */
 export function StopScriptRun(req: $models.StopScriptRunRequest): $CancellablePromise<$models.ScriptRunProgress> {
     return $Call.ByID(4200316402, req);
-}
-
-/**
- * UpdateEnvironment 编辑环境（名称 / key / 排序）；key 变更会同步迁移磁盘脚本目录
- */
-export function UpdateEnvironment(req: $models.UpdateEnvironmentRequest): $CancellablePromise<$models.EnvironmentsResponse> {
-    return $Call.ByID(2279869160, req);
 }

@@ -1,11 +1,12 @@
 -- ============================================================================
--- OpsFlash v0.2.0 数据库结构文档 & 排查 SQL
+-- OpsFlash v0.5.0 数据库结构文档 & 排查 SQL
 -- 数据库：SQLite（modernc.org/sqlite 纯 Go 驱动）
 -- 位置：data/opsflash.db（应用工作目录下）
 -- 查看方式：sqlite3 data/opsflash.db  或任意 SQLite 客户端
--- 生成日期：2026-08-14
--- 范围：v0.2.0（认证 / 用户 / 连接 / 隧道 / 脚本库，共 7 张表）
---       新增：environments（环境）、scripts（脚本库）
+-- 生成日期：2026-08-14（v0.5.0 增量更新：2026-09-07）
+-- 范围：v0.2.0 基线（认证 / 用户 / 连接 / 隧道 / 脚本库，共 6 张表）
+--       历史欠账：commands / environments.env_key 等 v0.3+ 结构未同步到本文档，
+--                 以 server/database.go 实际建表为准（见文末 v0.5.0 增量追加）
 -- ============================================================================
 
 
@@ -91,3 +92,32 @@ CREATE TABLE IF NOT EXISTS scripts (
     ts INTEGER NOT NULL                               -- 修改时间（unix 秒）
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_scripts_env_name ON scripts(environment_id, name);
+
+-- ============================================================================
+-- 二、v0.5.0 增量追加（指令编排）
+-- 由 server/database.go InitDB 幂等创建（CREATE TABLE IF NOT EXISTS）
+-- ============================================================================
+
+-- 7. batch_tasks 批量任务（指令编排）
+--    failure_policy：stop_on_error（遇错停止，后续 skipped）| continue_on_error（忽略错误继续）
+CREATE TABLE IF NOT EXISTS batch_tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    remark TEXT DEFAULT '',
+    failure_policy TEXT NOT NULL DEFAULT 'stop_on_error',
+    sort_order INTEGER NOT NULL DEFAULT 10,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 8. batch_task_items 批量任务步骤项（有序；命令步骤 command_id>0，脚本步骤 script_id>0 且 args 支持 {{var}} 注入）
+CREATE TABLE IF NOT EXISTS batch_task_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    command_id INTEGER NOT NULL DEFAULT 0,
+    script_id INTEGER NOT NULL DEFAULT 0,
+    args TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 10,
+    FOREIGN KEY (task_id) REFERENCES batch_tasks(id)
+);
+CREATE INDEX IF NOT EXISTS idx_batch_items_task ON batch_task_items(task_id);

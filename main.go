@@ -19,7 +19,7 @@ import (
 
 const (
 	AppName = "OpsFlash"
-	Version = "0.4.0"
+	Version = "0.5.0"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
@@ -35,6 +35,7 @@ func init() {
 	// This is not required, but the binding generator will pick up registered events
 	// and provide a strongly typed JS/TS API for them.
 	application.RegisterEvent[string]("time")
+	// 终端输出事件（xterm 事件流：交互式/流式/会话模式的 PTY 输出实时推送）
 	application.RegisterEvent[server.TerminalOutputEvent]("pty:output")
 }
 
@@ -53,6 +54,9 @@ func main() {
 	}
 	defer server.CloseDB()
 
+	// 创建运维服务实例（持有引用以便退出时清理守护进程/交互式会话）
+	opsSvc := &server.OpsService{}
+
 	// 自动启动 auto_start=1 的隧道
 	server.AutoStartTunnels()
 
@@ -61,7 +65,6 @@ func main() {
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running an macOS.
-	opsSvc := &server.OpsService{}
 	app := application.New(application.Options{
 		Name:        AppName,
 		Description: "OpsFlash 运维工具",
@@ -69,10 +72,11 @@ func main() {
 			application.NewService(&server.GreetService{}),
 			application.NewService(&server.AuthService{}),
 			application.NewService(&server.UserService{}),
-			application.NewService(&server.ConnService{}),
-			application.NewService(&server.TunnelService{}),
-			application.NewService(&server.ScriptsService{}),
 			application.NewService(opsSvc),
+			application.NewService(&server.ConnService{}),
+			application.NewService(&server.BatchService{}),
+			application.NewService(&server.ScriptsService{}),
+			application.NewService(&server.TunnelService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -81,6 +85,11 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+
+	// 注入终端输出事件发射器（xterm 事件流）
+	opsSvc.SetEventEmitter(app.Event)
+
+	// 不设置应用菜单（顶部 menu 菜单已去除；退出走托盘菜单 / 关闭按钮）
 
 	// Create a new window with the necessary options.
 	// 'Title' is the title of the window.
@@ -97,8 +106,9 @@ func main() {
 			Backdrop:                application.MacBackdropTranslucent,
 			TitleBar:                application.MacTitleBarHiddenInset,
 		},
-		BackgroundColour: application.NewRGB(6, 7, 15),
-		URL:              "/",
+		BackgroundColour:   application.NewRGB(6, 7, 15),
+		URL:                "/",
+		UseApplicationMenu: false,
 	})
 
 	// 系统托盘：关闭窗口最小化到托盘；托盘菜单提供「显示主页面 / 退出」
@@ -114,15 +124,11 @@ func main() {
 		}
 	}()
 
-	// 注入终端输出事件发射器（xterm 事件流：交互/流式会话实时输出 → 前端）
-	opsSvc.SetEventEmitter(app.Event)
-
 	// Run the application. This blocks until the application has been exited.
 	err := app.Run()
 
-	// 停止所有运行中的守护进程、交互式会话与流式执行
+	// 应用退出：终止所有运行中的守护进程和交互式会话（防止残留进程）
 	opsSvc.Shutdown()
-
 	// 停止所有运行中的隧道
 	server.ShutdownTunnels()
 

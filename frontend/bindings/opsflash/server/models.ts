@@ -9,6 +9,117 @@ import * as exec$0 from "./exec/models.js";
 import * as tunnel$0 from "./tunnel/models.js";
 
 /**
+ * BatchItemInput 创建/更新任务时的步骤项
+ */
+export interface BatchItemInput {
+    "commandId": number;
+    "scriptId": number;
+    "args": string;
+}
+
+/**
+ * BatchRunItemProgress 批量执行单条命令/脚本的实时进度
+ */
+export interface BatchRunItemProgress {
+    "commandId": number;
+    "scriptId": number;
+
+    /**
+     * command | script
+     */
+    "kind": string;
+    "name": string;
+
+    /**
+     * pending | running | success | failed | skipped
+     */
+    "status": string;
+    "output": string;
+    "error": string;
+    "exitCode": number;
+    "durationMs": number;
+}
+
+/**
+ * BatchTask 批量任务
+ */
+export interface BatchTask {
+    "id": number;
+    "name": string;
+    "remark": string;
+
+    /**
+     * stop_on_error | continue_on_error
+     */
+    "failurePolicy": string;
+    "sortOrder": number;
+    "commandCount": number;
+    "createdAt": string;
+}
+
+/**
+ * BatchTaskItem 批量任务项（命令或脚本步骤）
+ */
+export interface BatchTaskItem {
+    "id": number;
+    "taskId": number;
+
+    /**
+     * 命令步骤
+     */
+    "commandId": number;
+
+    /**
+     * 脚本步骤（>0 时优先）
+     */
+    "scriptId": number;
+
+    /**
+     * 脚本参数（支持 {{var}} 注入）
+     */
+    "args": string;
+
+    /**
+     * command | script（前端展示）
+     */
+    "kind": string;
+
+    /**
+     * JOIN 带出（命令名或脚本名）
+     */
+    "name": string;
+
+    /**
+     * JOIN commands 带出（命令步骤）
+     */
+    "mode": string;
+    "sortOrder": number;
+}
+
+export interface BatchTaskProgressResponse {
+    "success": boolean;
+    "done": boolean;
+    "stopped": boolean;
+    "items": BatchRunItemProgress[] | null;
+    "startedAt": string;
+    "finishedAt": string;
+    "message": string;
+}
+
+export interface BatchTaskResponse {
+    "success": boolean;
+    "task": BatchTask | null;
+    "items": BatchTaskItem[] | null;
+    "message": string;
+}
+
+export interface BatchTasksResponse {
+    "success": boolean;
+    "tasks": BatchTask[] | null;
+    "message": string;
+}
+
+/**
  * BatchTunnelFailure 批量创建中的失败项
  */
 export interface BatchTunnelFailure {
@@ -70,9 +181,6 @@ export interface CommandResponse {
     "message": string;
 }
 
-/**
- * 响应类型
- */
 export interface CommandsResponse {
     "success": boolean;
     "commands": Command[] | null;
@@ -124,9 +232,15 @@ export interface Connection {
     "passphrase": string;
 
     /**
-     * redis DB 索引 / mysql、tdengine 库名
+     * redis DB / mysql、tdengine 库名
      */
     "database": string;
+    "defaultCommand": string;
+
+    /**
+     * 关联隧道 ID（0=不通过隧道）
+     */
+    "tunnelId": number;
     "remark": string;
 
     /**
@@ -149,6 +263,23 @@ export interface ConnectionsResponse {
     "message": string;
 }
 
+export interface CreateBatchTaskRequest {
+    "token": string;
+    "name": string;
+    "remark": string;
+    "failurePolicy": string;
+
+    /**
+     * 兼容旧前端：纯命令步骤
+     */
+    "commandIds": number[] | null;
+
+    /**
+     * 新格式：命令/脚本混合步骤（优先）
+     */
+    "items": BatchItemInput[] | null;
+}
+
 export interface CreateCommandRequest {
     "token": string;
     "name": string;
@@ -168,7 +299,7 @@ export interface CreateCommandRequest {
     "environmentId": number;
 
     /**
-     * "terminal" | "ssh" | "redis" | "mysql" | "tdengine"
+     * "terminal" | "ssh" | ...
      */
     "mode": string;
 
@@ -191,6 +322,8 @@ export interface CreateConnectionRequest {
     "privateKeyPath": string;
     "passphrase": string;
     "database": string;
+    "defaultCommand": string;
+    "tunnelId": number;
     "remark": string;
 }
 
@@ -268,6 +401,16 @@ export interface CreateUserRequest {
     "username": string;
     "password": string;
     "role": string;
+}
+
+export interface DeleteBatchTaskRequest {
+    "token": string;
+    "id": number;
+}
+
+export interface DeleteBatchTaskResponse {
+    "success": boolean;
+    "message": string;
 }
 
 export interface DeleteCommandRequest {
@@ -355,6 +498,9 @@ export interface Environment {
     "createdAt": string;
 }
 
+/**
+ * 响应类型
+ */
 export interface EnvironmentsResponse {
     "success": boolean;
     "environments": Environment[] | null;
@@ -382,6 +528,23 @@ export interface ExportTunnelsResponse {
     "message": string;
 }
 
+export interface GetBatchTaskProgressRequest {
+    "token": string;
+    "runId": number;
+}
+
+export interface GetBatchTaskRequest {
+    "token": string;
+    "id": number;
+}
+
+/**
+ * 请求/响应类型
+ */
+export interface GetBatchTasksRequest {
+    "token": string;
+}
+
 /**
  * 请求类型：命令
  */
@@ -402,6 +565,9 @@ export interface GetConnectionsRequest {
     "type": string;
 }
 
+/**
+ * 请求类型：环境
+ */
 export interface GetEnvironmentsRequest {
     "token": string;
 }
@@ -539,7 +705,7 @@ export interface RunCommandResponse {
     "output": string;
 
     /**
-     * "" | "text" | "table"（数据库查询类返回表格）
+     * "" | "text" | "table"
      */
     "resultType": string;
     "result": exec$0.QueryResult | null;
@@ -644,6 +810,22 @@ export interface SendStreamInputRequest {
     "input": string;
 }
 
+export interface StartBatchTaskRequest {
+    "token": string;
+    "id": number;
+
+    /**
+     * 流程参数 {"version":"1.2.3"}，注入脚本步骤 args 的 {{key}}
+     */
+    "paramsJson": string;
+}
+
+export interface StartBatchTaskResponse {
+    "success": boolean;
+    "runId": number;
+    "message": string;
+}
+
 /**
  * 守护进程请求/响应
  */
@@ -671,6 +853,16 @@ export interface StartStreamRequest {
 export interface StartTunnelRequest {
     "token": string;
     "id": number;
+}
+
+export interface StopBatchTaskRequest {
+    "token": string;
+    "runId": number;
+}
+
+export interface StopBatchTaskResponse {
+    "success": boolean;
+    "message": string;
 }
 
 export interface StopDaemonRequest {
@@ -856,6 +1048,16 @@ export interface TunnelsResponse {
     "message": string;
 }
 
+export interface UpdateBatchTaskRequest {
+    "token": string;
+    "id": number;
+    "name": string;
+    "remark": string;
+    "failurePolicy": string;
+    "commandIds": number[] | null;
+    "items": BatchItemInput[] | null;
+}
+
 export interface UpdateCommandRequest {
     "token": string;
     "id": number;
@@ -884,6 +1086,8 @@ export interface UpdateConnectionRequest {
     "privateKeyPath": string;
     "passphrase": string;
     "database": string;
+    "defaultCommand": string;
+    "tunnelId": number;
     "remark": string;
 }
 

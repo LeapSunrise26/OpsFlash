@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, shallowReactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
-import { ScriptsService } from '../../../bindings/opsflash/server'
+import { ScriptsService, OpsService } from '../../../bindings/opsflash/server'
 import { Script, Environment } from '../../../bindings/opsflash/server/models'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -66,7 +66,7 @@ const scriptListEl = ref<HTMLDivElement | null>(null)
 
 // ==================== 计算属性 ====================
 const filteredScripts = computed(() => {
-  // 0=全部环境；否则仅显示选中环境的脚本
+  // 全部环境视图：显示所有环境的脚本；选中具体环境则只显示该环境
   if (!activeEnvId.value) return scripts.value
   return scripts.value.filter((s) => s.environmentId === activeEnvId.value)
 })
@@ -86,12 +86,12 @@ function fmtNow(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-// 环境名辅助（供模板使用，找不到返回空）
+// 环境名辅助（供模板使用）
 function envNameById(id: number): string {
-  return environments.value.find((e) => e.id === id)?.name || ''
+  return environments.value.find((e) => e.id === id)?.name || '—'
 }
 
-// 环境平铺切换（0=全部）
+// 环境平铺切换（点击标签筛选该环境的脚本）
 function selectEnv(id: number) {
   if (activeEnvId.value === id) return
   activeEnvId.value = id
@@ -123,8 +123,14 @@ async function loadScripts() {
 
 async function loadEnvironments() {
   try {
-    const res = await ScriptsService.GetEnvironments({ token: props.token })
-    if (res.success) environments.value = res.environments || []
+    const res = await OpsService.GetEnvironments({ token: props.token })
+    if (res.success) {
+      environments.value = res.environments || []
+      // 默认保持「全部」视图；若之前选中的环境已不存在则回退到「全部」
+      if (activeEnvId.value !== 0 && !environments.value.some((e) => e.id === activeEnvId.value)) {
+        activeEnvId.value = 0
+      }
+    }
   } catch (e) {
     console.error('加载环境失败', e)
   }
@@ -168,8 +174,8 @@ function onEditorKeydown(e: KeyboardEvent) {
 
 // ==================== 新建 ====================
 function openCreateModal() {
-  // 当前筛选环境；「全部」视图下默认选首个真实环境（脚本必须归属环境）
-  const defEnv = activeEnvId.value || environments.value[0]?.id || 0
+  // 预选当前环境（在「全部」视图下则选首个环境），避免落到「请选择所属环境」
+  const defEnv = activeEnvId.value > 0 ? activeEnvId.value : environments.value[0]?.id || 0
   createForm.value = { name: '', type: 'bat', remark: '', environmentId: defEnv }
   createError.value = ''
   showCreateModal.value = true
@@ -550,9 +556,9 @@ function fitAllTerminals() {
 }
 
 // ==================== 生命周期 ====================
-onMounted(() => {
-  loadScripts()
-  loadEnvironments()
+onMounted(async () => {
+  await loadEnvironments()
+  await loadScripts()
   window.addEventListener('resize', fitAllTerminals)
 })
 
@@ -577,7 +583,7 @@ function confirmDiscard(): boolean {
     <!-- ==================== 工具栏 ==================== -->
     <div class="scripts-toolbar">
       <div class="scripts-left">
-        <!-- 环境筛选（环境的增删改在「环境管理」菜单） -->
+        <!-- 环境筛选（「全部」查看所有环境脚本；点击具体环境仅看该环境；环境的增删改在「环境管理」菜单） -->
         <div
           class="scripts-env-tag"
           :class="{ 'scripts-env-tag-active': activeEnvId === 0 }"
@@ -633,9 +639,9 @@ function confirmDiscard(): boolean {
           >
             <div class="script-item-main">
               <span class="script-item-name">{{ s.name }}</span>
+              <span v-if="activeEnvId === 0" class="script-item-env">{{ envNameById(s.environmentId) }}</span>
               <span v-if="runningScriptIds.has(s.id)" class="script-item-running">● 运行中</span>
               <span class="script-item-type" :class="`type-${s.type}`">{{ typeLabel(s.type) }}</span>
-              <span v-if="activeEnvId === 0 && envNameById(s.environmentId)" class="script-item-env">{{ envNameById(s.environmentId) }}</span>
             </div>
             <p v-if="s.remark" class="script-item-remark" :title="s.remark">{{ s.remark }}</p>
           </div>
@@ -680,7 +686,7 @@ function confirmDiscard(): boolean {
             @keydown="onEditorKeydown"
           ></textarea>
           <div class="editor-foot">
-            <span>工作目录：脚本所在目录 data/scripts/{环境 key}/</span>
+            <span>工作目录：脚本所在目录 data/scripts/{{ current ? current.envKey : '环境key' }}/</span>
             <span>退出码：bat 用 call+exit /b，ps1 用 exit $LASTEXITCODE</span>
           </div>
         </template>
@@ -872,7 +878,7 @@ function confirmDiscard(): boolean {
           <button class="modal-close" @click="showDeleteModal = false">&times;</button>
         </div>
         <div class="modal-body">
-          <p class="confirm-text">确定删除脚本「{{ current ? fileLabel(current) : '' }}」吗？文件将从 data/scripts/{环境 key}/ 中移除。</p>
+          <p class="confirm-text">确定删除脚本「{{ current ? fileLabel(current) : '' }}」吗？文件将从 data/scripts/{{ current ? current.envKey : '环境key' }}/ 中移除。</p>
         </div>
         <div class="modal-footer">
           <button class="btn-cancel" @click="showDeleteModal = false">取消</button>

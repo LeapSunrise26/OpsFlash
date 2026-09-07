@@ -17,7 +17,7 @@ import (
 // ==================== 脚本库模块 ====================
 // 脚本库 = data/scripts/ 下的 .bat/.ps1/.sh 素材管理 + 一键执行。
 // 设计要点：
-//   - 文件按环境子目录存放：data/scripts/{envKey}/{name}.{typ}
+//   - 文件平铺于 data/scripts/，文件名即脚本名，扩展名限定 bat/ps1/sh
 //   - 元数据存 scripts 表，内容存磁盘（可用任意编辑器修改）
 //   - 执行：复用 pty.StartPTY（ConPTY 实时输出 + 可停止），命令包装保证退出码可靠
 //   - sh 的 CRLF：执行时自动转 LF 副本（不改源文件）

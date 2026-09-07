@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { OpsService, ConnService, ScriptsService } from '../../../bindings/opsflash/server'
+import { OpsService, ConnService } from '../../../bindings/opsflash/server'
 import { Command, Connection, Environment } from '../../../bindings/opsflash/server/models'
 import { useTerminal } from '../../composables/useTerminal'
 import { useCommandExec } from '../../composables/useCommandExec'
@@ -125,7 +125,7 @@ function toggleAllCmds() {
 // ==================== API 加载 ====================
 async function loadEnvironments() {
   try {
-    const res = await ScriptsService.GetEnvironments({ token: props.token })
+    const res = await OpsService.GetEnvironments({ token: props.token })
     if (res.success) {
       environments.value = res.environments || []
       if (!activeEnvId.value && environments.value.length > 0) {

@@ -408,12 +408,23 @@ func (s *TunnelService) DeleteTunnel(req DeleteTunnelRequest) DeleteTunnelRespon
 	// 先停止运行中的隧道
 	tunnelRT.StopTunnel(req.ID)
 
+	// 重置引用该隧道的数据库连接为直连（tunnel_id=0），避免悬空引用
+	res, err := db.Exec("UPDATE connections SET tunnel_id = 0 WHERE tunnel_id = ?", req.ID)
+	if err != nil {
+		slog.Warn("删除隧道时重置连接隧道引用失败", "id", req.ID, "error", err)
+	}
+	refCount, _ := res.RowsAffected()
+
 	_, err = db.Exec("DELETE FROM tunnels WHERE id = ?", req.ID)
 	if err != nil {
 		slog.Error("删除隧道失败", "id", req.ID, "error", err)
 		return DeleteTunnelResponse{Success: false, Message: "删除失败: " + err.Error()}
 	}
 
-	slog.Info("隧道删除成功", "id", req.ID, "name", tunnelName)
-	return DeleteTunnelResponse{Success: true, Message: "隧道「" + tunnelName + "」已删除"}
+	slog.Info("隧道删除成功", "id", req.ID, "name", tunnelName, "resetConnections", refCount)
+	msg := "隧道「" + tunnelName + "」已删除"
+	if refCount > 0 {
+		msg += "，" + strconv.FormatInt(refCount, 10) + " 个关联连接已重置为直连"
+	}
+	return DeleteTunnelResponse{Success: true, Message: msg}
 }

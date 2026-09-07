@@ -12,7 +12,7 @@ import (
 )
 
 // ==================== 连接管理（数据层 + 管理 API）====================
-// 连接（Connection）= 服务器 / 数据库服务信息描述（ssh / redis / mysql / tdengine）。
+// 连接（Connection）= 执行目标的信息描述：SSH 服务器 / Redis / MySQL / TDengine。
 // 敏感字段（密码/私钥/口令）经 secret 包加密后落库，接口返回时脱敏。
 
 // Connection 连接信息
@@ -28,7 +28,9 @@ type Connection struct {
 	PrivateKey     string `json:"privateKey"` // 私钥 PEM 内容（加密存储）
 	PrivateKeyPath string `json:"privateKeyPath"`
 	Passphrase     string `json:"passphrase"` // 私钥口令（加密存储）
-	Database       string `json:"database"`   // redis DB 索引 / mysql、tdengine 库名
+	Database       string `json:"database"`   // redis DB / mysql、tdengine 库名
+	DefaultCommand string `json:"defaultCommand"`
+	TunnelId       int    `json:"tunnelId"`   // 关联隧道 ID（0=不通过隧道）
 	Remark         string `json:"remark"`
 	HasSecret      bool   `json:"hasSecret"` // 是否已设置密码/私钥（脱敏后用于前端展示）
 	CreatedAt      string `json:"createdAt"`
@@ -54,6 +56,8 @@ type CreateConnectionRequest struct {
 	PrivateKeyPath string `json:"privateKeyPath"`
 	Passphrase     string `json:"passphrase"`
 	Database       string `json:"database"`
+	DefaultCommand string `json:"defaultCommand"`
+	TunnelId       int    `json:"tunnelId"`
 	Remark         string `json:"remark"`
 }
 
@@ -71,6 +75,8 @@ type UpdateConnectionRequest struct {
 	PrivateKeyPath string `json:"privateKeyPath"`
 	Passphrase     string `json:"passphrase"`
 	Database       string `json:"database"`
+	DefaultCommand string `json:"defaultCommand"`
+	TunnelId       int    `json:"tunnelId"`
 	Remark         string `json:"remark"`
 }
 
@@ -126,17 +132,17 @@ type TestConnectionResponse struct {
 // ConnService 连接管理服务
 type ConnService struct{}
 
-// 连接类型合法性 + 默认端口（v0.4.0：ssh / redis / mysql / tdengine）
+// 连接类型合法性 + 默认端口
 var connectionTypePorts = map[string]int{
 	"ssh":      22,
 	"redis":    6379,
 	"mysql":    3306,
-	"tdengine": 6041, // taosAdapter REST 接口
+	"tdengine": 6041, // REST 接口（taosAdapter）
 }
 
 // ==================== 工具函数 ====================
 
-// validateConnectionType 校验连接字段，返回规范化后的类型与默认端口
+// validateConnection 校验连接字段，返回规范化后的类型与默认端口
 func validateConnectionType(connType string) (string, error) {
 	connType = strings.TrimSpace(connType)
 	if connType == "" {
@@ -174,7 +180,7 @@ func scanConnection(row interface{ Scan(...interface{}) error }) (*Connection, e
 	var password, privateKey, passphrase sql.NullString
 	err := row.Scan(&c.ID, &c.Name, &c.Type, &c.Host, &c.Port, &c.Username,
 		&c.AuthMethod, &password, &privateKey, &c.PrivateKeyPath, &passphrase,
-		&c.Database, &c.Remark, &c.CreatedAt, &c.UpdatedAt)
+		&c.Database, &c.DefaultCommand, &c.TunnelId, &c.Remark, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +190,7 @@ func scanConnection(row interface{ Scan(...interface{}) error }) (*Connection, e
 	return &c, nil
 }
 
-const connectionCols = "id, name, type, host, port, username, auth_method, password, private_key, private_key_path, passphrase, database, remark, created_at, updated_at"
+const connectionCols = "id, name, type, host, port, username, auth_method, password, private_key, private_key_path, passphrase, database, default_command, tunnel_id, remark, created_at, updated_at"
 
 // loadConnectionByID 加载连接并解密敏感字段；id<=0 返回 nil（本地模式）
 func loadConnectionByID(id int) (*Connection, error) {
@@ -286,11 +292,11 @@ func (s *ConnService) CreateConnection(req CreateConnectionRequest) ConnectionRe
 
 	port := defaultPort(connType, req.Port)
 	result, err := db.Exec(`INSERT INTO connections
-		(name, type, host, port, username, auth_method, password, private_key, private_key_path, passphrase, database, remark)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(name, type, host, port, username, auth_method, password, private_key, private_key_path, passphrase, database, default_command, tunnel_id, remark)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		name, connType, strings.TrimSpace(req.Host), port, strings.TrimSpace(req.Username),
 		authMethod, password, privateKey, strings.TrimSpace(req.PrivateKeyPath), passphrase,
-		strings.TrimSpace(req.Database), strings.TrimSpace(req.Remark))
+		strings.TrimSpace(req.Database), strings.TrimSpace(req.DefaultCommand), req.TunnelId, strings.TrimSpace(req.Remark))
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return ConnectionResponse{Success: false, Message: "连接名称已存在"}
@@ -305,16 +311,18 @@ func (s *ConnService) CreateConnection(req CreateConnectionRequest) ConnectionRe
 	return ConnectionResponse{
 		Success: true,
 		Connection: &Connection{
-			ID:         int(id),
-			Name:       name,
-			Type:       connType,
-			Host:       strings.TrimSpace(req.Host),
-			Port:       port,
-			Username:   strings.TrimSpace(req.Username),
-			AuthMethod: authMethod,
-			Database:   strings.TrimSpace(req.Database),
-			Remark:     strings.TrimSpace(req.Remark),
-			HasSecret:  req.Password != "" || req.PrivateKey != "" || req.Passphrase != "",
+			ID:             int(id),
+			Name:           name,
+			Type:           connType,
+			Host:           strings.TrimSpace(req.Host),
+			Port:           port,
+			Username:       strings.TrimSpace(req.Username),
+			AuthMethod:     authMethod,
+			Database:       strings.TrimSpace(req.Database),
+			DefaultCommand: strings.TrimSpace(req.DefaultCommand),
+			TunnelId:       req.TunnelId,
+			Remark:         strings.TrimSpace(req.Remark),
+			HasSecret:      req.Password != "" || req.PrivateKey != "" || req.Passphrase != "",
 		},
 		Message: "连接创建成功",
 	}
@@ -378,9 +386,9 @@ func (s *ConnService) UpdateConnection(req UpdateConnectionRequest) ConnectionRe
 	// 动态构造 UPDATE：只更新需要改动的敏感字段
 	query := `UPDATE connections SET
 		name = ?, type = ?, host = ?, port = ?, username = ?, auth_method = ?,
-		database = ?, remark = ?, updated_at = CURRENT_TIMESTAMP`
+		database = ?, default_command = ?, tunnel_id = ?, remark = ?, updated_at = CURRENT_TIMESTAMP`
 	args := []interface{}{name, connType, strings.TrimSpace(req.Host), port, strings.TrimSpace(req.Username),
-		authMethod, strings.TrimSpace(req.Database), strings.TrimSpace(req.Remark)}
+		authMethod, strings.TrimSpace(req.Database), strings.TrimSpace(req.DefaultCommand), req.TunnelId, strings.TrimSpace(req.Remark)}
 	if req.Password != "" {
 		query += ", password = ?"
 		args = append(args, password)
@@ -421,6 +429,7 @@ func (s *ConnService) UpdateConnection(req UpdateConnectionRequest) ConnectionRe
 			Username:   strings.TrimSpace(req.Username),
 			AuthMethod: authMethod,
 			Database:   strings.TrimSpace(req.Database),
+			TunnelId:   req.TunnelId,
 			Remark:     strings.TrimSpace(req.Remark),
 		},
 		Message: "连接修改成功",
@@ -440,6 +449,19 @@ func (s *ConnService) DeleteConnection(req DeleteConnectionRequest) DeleteConnec
 	}
 	if err != nil {
 		return DeleteConnectionResponse{Success: false, Message: "查询失败: " + err.Error()}
+	}
+
+	// 检查引用
+	var refCount int
+	db.QueryRow("SELECT COUNT(*) FROM commands WHERE connection_id = ?", req.ID).Scan(&refCount)
+	if refCount > 0 {
+		slog.Warn("删除连接被阻止：存在引用命令", "id", req.ID, "name", connName, "refCount", refCount)
+		return DeleteConnectionResponse{
+			Success:  false,
+			Message:  "该连接被 " + strconv.Itoa(refCount) + " 条命令引用，请先在运维操作中解除引用",
+			Blocked:  true,
+			RefCount: refCount,
+		}
 	}
 
 	// 检查隧道引用
@@ -478,6 +500,27 @@ func (s *ConnService) TestConnection(req TestConnectionRequest) TestConnectionRe
 	}
 	if c == nil {
 		return TestConnectionResponse{Success: false, Message: "连接不存在"}
+	}
+
+	// 若连接关联了 local 隧道（DB 类连接），测试走隧道本地端口
+	if c.TunnelId > 0 && c.Type != "ssh" {
+		row := db.QueryRow("SELECT "+tunnelCols+" FROM tunnels WHERE id = ?", c.TunnelId)
+		t, err := scanTunnel(row)
+		if err == sql.ErrNoRows {
+			return TestConnectionResponse{Success: false, Message: "关联的隧道(id=" + strconv.Itoa(c.TunnelId) + ")不存在"}
+		}
+		if err != nil {
+			return TestConnectionResponse{Success: false, Message: "查询隧道失败: " + err.Error()}
+		}
+		if t.Type != "local" {
+			return TestConnectionResponse{Success: false, Message: "数据库连接仅支持 local 类型隧道，当前隧道「" + t.Name + "」为 " + t.Type + " 类型"}
+		}
+		if status, ok := tunnelRT.GetStatus(t.ID); !ok || !status.Running {
+			return TestConnectionResponse{Success: false, Message: "关联隧道「" + t.Name + "」未运行，请先在隧道管理中启动该隧道"}
+		}
+		// 通过隧道本地端口测试（隧道启动时已探测远程目标可达）
+		return testConnection(c.Type, t.LocalHost, t.LocalPort, c.Username, c.AuthMethod,
+			c.Password, c.PrivateKey, c.PrivateKeyPath, c.Passphrase, c.Database)
 	}
 
 	return testConnection(c.Type, c.Host, c.Port, c.Username, c.AuthMethod,

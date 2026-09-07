@@ -5,15 +5,24 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"opsflash/server/daemon"
 )
 
-// ==================== 指令库（命令管理：数据增删改查）====================
-// v0.4.0：命令 CRUD + 执行目标（terminal 本地 / ssh 远程 / redis / mysql / tdengine 数据库）。
-// 环境归属复用 ScriptsService 的环境管理（environments 表同源）。
+// ==================== 命令管理（数据增删改查）====================
+
+// Environment 环境信息
+type Environment struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Key       string `json:"key"`       // 英文 key，作脚本磁盘子目录名 data/scripts/{key}/
+	SortOrder int    `json:"sortOrder"`
+	CreatedAt string `json:"createdAt"`
+}
 
 // Command 命令信息
 type Command struct {
@@ -33,6 +42,32 @@ type Command struct {
 	ConnectionName string `json:"connectionName"` // JOIN connections 带出，如 "prod-01@10.0.0.1"
 }
 
+// 请求类型：环境
+type GetEnvironmentsRequest struct {
+	Token string `json:"token"`
+}
+
+type CreateEnvironmentRequest struct {
+	Token     string `json:"token"`
+	Name      string `json:"name"`
+	Key       string `json:"key"`
+	SortOrder int    `json:"sortOrder"`
+}
+
+type UpdateEnvironmentRequest struct {
+	Token     string `json:"token"`
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Key       string `json:"key"`
+	SortOrder int    `json:"sortOrder"`
+}
+
+type DeleteEnvironmentRequest struct {
+	Token    string `json:"token"`
+	ID       int    `json:"id"`
+	TargetId int    `json:"targetId"` // 删除时脚本迁移目标环境（不能等于自身；至少保留一个环境）
+}
+
 // 请求类型：命令
 type GetCommandsRequest struct {
 	Token         string `json:"token"`
@@ -48,7 +83,7 @@ type CreateCommandRequest struct {
 	Interpreter   string `json:"interpreter"` // "cmd" | "powershell" | "bash"
 	SortOrder     int    `json:"sortOrder"`
 	EnvironmentId int    `json:"environmentId"`
-	Mode          string `json:"mode"`         // "terminal" | "ssh" | "redis" | "mysql" | "tdengine"
+	Mode          string `json:"mode"`         // "terminal" | "ssh" | ...
 	ConnectionId  int    `json:"connectionId"` // 0 = 本地
 }
 
@@ -72,6 +107,12 @@ type DeleteCommandRequest struct {
 }
 
 // 响应类型
+type EnvironmentsResponse struct {
+	Success      bool          `json:"success"`
+	Environments []Environment `json:"environments"`
+	Message      string        `json:"message"`
+}
+
 type CommandsResponse struct {
 	Success  bool      `json:"success"`
 	Commands []Command `json:"commands"`
@@ -84,15 +125,21 @@ type CommandResponse struct {
 	Message string  `json:"message"`
 }
 
+type DeleteEnvResponse struct {
+	Success      bool   `json:"success"`
+	Message      string `json:"message"`
+	DeletedCount int    `json:"deletedCount"`
+}
+
 type DeleteCommandResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
-// OpsService 指令库服务
+// OpsService 运维操作服务
 type OpsService struct {
 	mu                  sync.Mutex
-	cmdDaemons          map[int]daemon.Record       // 守护进程命令（按命令 ID 跟踪；本机 Job Object / SSH 远程）
+	cmdDaemons          map[int]daemon.Record       // 守护进程命令（按命令 ID 跟踪；本机 Job Object/进程组 / SSH 远程）
 	interactiveSessions map[int]*interactiveSession // 交互式命令会话
 	streamSessions      map[int]*streamSession      // 非交互式流式执行会话（实时输出）
 	eventEmitter        EventEmitter                // 终端输出事件发射器（xterm 事件流，main 注入）
@@ -139,7 +186,7 @@ func (s *OpsService) ensureMap() {
 }
 
 // validateModeAndConnection 校验执行模式与目标连接的一致性
-// terminal 模式：connectionId 必须为 0；ssh/redis/mysql/tdengine 模式：连接必须存在且类型匹配
+// terminal 模式：connectionId 必须为 0；其他模式：连接必须存在且类型匹配
 func validateModeAndConnection(mode string, connectionId int) (string, error) {
 	mode = strings.TrimSpace(mode)
 	if mode == "" {
@@ -169,6 +216,285 @@ func validateModeAndConnection(mode string, connectionId int) (string, error) {
 		return "", fmt.Errorf("连接类型与执行模式不匹配：连接 %d 是 %s 类型，命令模式是 %s", connectionId, connType, mode)
 	}
 	return mode, nil
+}
+
+// ==================== 环境管理 API ====================
+
+// GetEnvironments 获取所有环境列表
+func (s *OpsService) GetEnvironments(req GetEnvironmentsRequest) EnvironmentsResponse {
+	if _, ok := validateSession(req.Token); !ok {
+		return EnvironmentsResponse{Success: false, Message: "会话已过期"}
+	}
+
+	rows, err := db.Query("SELECT id, name, env_key, sort_order, created_at FROM environments ORDER BY sort_order ASC")
+	if err != nil {
+		slog.Error("查询环境列表失败", "error", err)
+		return EnvironmentsResponse{Success: false, Message: "查询失败: " + err.Error()}
+	}
+	defer rows.Close()
+
+	var envs []Environment
+	for rows.Next() {
+		var env Environment
+		if err := rows.Scan(&env.ID, &env.Name, &env.Key, &env.SortOrder, &env.CreatedAt); err != nil {
+			slog.Error("扫描环境记录失败", "error", err)
+			continue
+		}
+		envs = append(envs, env)
+	}
+	return EnvironmentsResponse{Success: true, Environments: envs}
+}
+
+// CreateEnvironment 创建环境（含英文 key 与排序）
+func (s *OpsService) CreateEnvironment(req CreateEnvironmentRequest) EnvironmentsResponse {
+	if _, ok := validateSession(req.Token); !ok {
+		return EnvironmentsResponse{Success: false, Message: "会话已过期"}
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return EnvironmentsResponse{Success: false, Message: "环境名称不能为空"}
+	}
+	key := sanitizeEnvKey(req.Key)
+	if key == "" {
+		return EnvironmentsResponse{Success: false, Message: "环境 key 不能为空（仅限小写字母、数字、_、-）"}
+	}
+	// key 唯一性
+	var cnt int
+	db.QueryRow("SELECT COUNT(*) FROM environments WHERE env_key = ?", key).Scan(&cnt)
+	if cnt > 0 {
+		return EnvironmentsResponse{Success: false, Message: "环境 key 已存在"}
+	}
+	// 名称唯一性
+	db.QueryRow("SELECT COUNT(*) FROM environments WHERE name = ?", name).Scan(&cnt)
+	if cnt > 0 {
+		return EnvironmentsResponse{Success: false, Message: "环境名称已存在"}
+	}
+
+	sortOrder := req.SortOrder
+	if sortOrder <= 0 {
+		var maxOrder int
+		db.QueryRow("SELECT COALESCE(MAX(sort_order), 99) FROM environments").Scan(&maxOrder)
+		sortOrder = maxOrder + 1
+	}
+
+	result, err := db.Exec("INSERT INTO environments (name, env_key, sort_order) VALUES (?, ?, ?)", name, key, sortOrder)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return EnvironmentsResponse{Success: false, Message: "环境名称或 key 已存在"}
+		}
+		slog.Error("创建环境失败", "name", name, "error", err)
+		return EnvironmentsResponse{Success: false, Message: "创建失败: " + err.Error()}
+	}
+
+	id, _ := result.LastInsertId()
+	slog.Info("环境创建成功", "id", id, "name", name, "key", key)
+
+	return s.GetEnvironments(GetEnvironmentsRequest{Token: req.Token})
+}
+
+// UpdateEnvironment 编辑环境（名称 / key / 排序）；key 变更会同步迁移磁盘脚本目录
+func (s *OpsService) UpdateEnvironment(req UpdateEnvironmentRequest) EnvironmentsResponse {
+	if _, ok := validateSession(req.Token); !ok {
+		return EnvironmentsResponse{Success: false, Message: "会话已过期"}
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return EnvironmentsResponse{Success: false, Message: "环境名称不能为空"}
+	}
+	key := sanitizeEnvKey(req.Key)
+	if key == "" {
+		return EnvironmentsResponse{Success: false, Message: "环境 key 不能为空（仅限小写字母、数字、_、-）"}
+	}
+
+	// 原记录
+	var oldName, oldKey string
+	err := db.QueryRow("SELECT name, env_key FROM environments WHERE id = ?", req.ID).Scan(&oldName, &oldKey)
+	if err == sql.ErrNoRows {
+		return EnvironmentsResponse{Success: false, Message: "环境不存在"}
+	}
+	if err != nil {
+		return EnvironmentsResponse{Success: false, Message: "查询失败: " + err.Error()}
+	}
+
+	// 名称唯一（排除自身）
+	var cnt int
+	db.QueryRow("SELECT COUNT(*) FROM environments WHERE name = ? AND id != ?", name, req.ID).Scan(&cnt)
+	if cnt > 0 {
+		return EnvironmentsResponse{Success: false, Message: "环境名称已存在"}
+	}
+	// key 唯一（排除自身）
+	db.QueryRow("SELECT COUNT(*) FROM environments WHERE env_key = ? AND id != ?", key, req.ID).Scan(&cnt)
+	if cnt > 0 {
+		return EnvironmentsResponse{Success: false, Message: "环境 key 已存在"}
+	}
+
+	sortOrder := req.SortOrder
+	if sortOrder <= 0 {
+		sortOrder = 100
+	}
+
+	if _, err := db.Exec("UPDATE environments SET name = ?, env_key = ?, sort_order = ? WHERE id = ?",
+		name, key, sortOrder, req.ID); err != nil {
+		slog.Error("更新环境失败", "id", req.ID, "error", err)
+		return EnvironmentsResponse{Success: false, Message: "更新失败: " + err.Error()}
+	}
+
+	// key 变更 → 迁移磁盘脚本目录 data/scripts/{oldKey} → data/scripts/{key}
+	if oldKey != "" && oldKey != key {
+		moveScriptsDir(oldKey, key)
+	}
+
+	slog.Info("环境更新成功", "id", req.ID, "name", name, "key", key)
+	return s.GetEnvironments(GetEnvironmentsRequest{Token: req.Token})
+}
+
+// sanitizeEnvKey 清洗英文 key：仅保留小写字母、数字、下划线、连字符
+func sanitizeEnvKey(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// moveScriptsDir 将脚本从 data/scripts/{oldKey}/ 迁移到 data/scripts/{newKey}/
+// （合并内容并删除旧目录；任一为空或相等则跳过）
+func moveScriptsDir(oldKey, newKey string) {
+	if oldKey == "" || newKey == "" || oldKey == newKey {
+		return
+	}
+	root := scriptsDir()
+	oldDir := filepath.Join(root, oldKey)
+	if _, err := os.Stat(oldDir); err != nil {
+		return // 旧目录不存在（可能本就无脚本）
+	}
+	newDir := filepath.Join(root, newKey)
+	_ = os.MkdirAll(newDir, 0755)
+	if fes, err := os.ReadDir(oldDir); err == nil {
+		for _, fe := range fes {
+			if fe.IsDir() {
+				continue
+			}
+			_ = os.Rename(filepath.Join(oldDir, fe.Name()), filepath.Join(newDir, fe.Name()))
+		}
+	}
+	_ = os.Remove(oldDir)
+	slog.Info("脚本目录已迁移", "from", oldKey, "to", newKey)
+}
+
+// DeleteEnvironment 删除环境（脚本迁移到目标环境，运维命令级联删除）
+func (s *OpsService) DeleteEnvironment(req DeleteEnvironmentRequest) DeleteEnvResponse {
+	if _, ok := validateSession(req.Token); !ok {
+		return DeleteEnvResponse{Success: false, Message: "会话已过期"}
+	}
+	if req.TargetId == req.ID {
+		return DeleteEnvResponse{Success: false, Message: "脚本迁移目标不能是自身"}
+	}
+
+	var envName, oldKey string
+	err := db.QueryRow("SELECT name, env_key FROM environments WHERE id = ?", req.ID).Scan(&envName, &oldKey)
+	if err == sql.ErrNoRows {
+		return DeleteEnvResponse{Success: false, Message: "环境不存在"}
+	}
+	if err != nil {
+		return DeleteEnvResponse{Success: false, Message: "查询失败: " + err.Error()}
+	}
+
+	// 至少保留一个环境
+	var otherCount int
+	db.QueryRow("SELECT COUNT(*) FROM environments WHERE id != ?", req.ID).Scan(&otherCount)
+	if otherCount == 0 {
+		return DeleteEnvResponse{Success: false, Message: "至少保留一个环境，无法删除"}
+	}
+
+	// 目标环境校验
+	var targetName, newKey string
+	if req.TargetId > 0 {
+		terr := db.QueryRow("SELECT name, env_key FROM environments WHERE id = ?", req.TargetId).Scan(&targetName, &newKey)
+		if terr == sql.ErrNoRows {
+			return DeleteEnvResponse{Success: false, Message: "目标环境不存在"}
+		}
+		if terr != nil {
+			return DeleteEnvResponse{Success: false, Message: "查询失败: " + terr.Error()}
+		}
+	}
+
+	// 停止该环境下的命令进程（命令仍级联删除）
+	rows, err := db.Query("SELECT id, type FROM commands WHERE environment_id = ?", req.ID)
+	if err != nil {
+		return DeleteEnvResponse{Success: false, Message: "查询命令失败: " + err.Error()}
+	}
+	var cmdIDs []int
+	for rows.Next() {
+		var cid int
+		var ctype string
+		rows.Scan(&cid, &ctype)
+		cmdIDs = append(cmdIDs, cid)
+	}
+	rows.Close()
+
+	s.mu.Lock()
+	s.ensureMap()
+	for _, cid := range cmdIDs {
+		if rec, exists := s.cmdDaemons[cid]; exists {
+			delete(s.cmdDaemons, cid)
+			rec.Terminate()
+		}
+		if session, exists := s.interactiveSessions[cid]; exists {
+			delete(s.interactiveSessions, cid)
+			if session.transport != nil {
+				session.transport.Kill()
+				session.transport.Close()
+			}
+		}
+	}
+	s.mu.Unlock()
+
+	var cmdCount int
+	db.QueryRow("SELECT COUNT(*) FROM commands WHERE environment_id = ?", req.ID).Scan(&cmdCount)
+
+	// 脚本迁移到目标环境（磁盘目录 + DB）
+	if req.TargetId > 0 {
+		moveScriptsDir(oldKey, newKey)
+		db.Exec("UPDATE scripts SET environment_id = ? WHERE environment_id = ?", req.TargetId, req.ID)
+	} else {
+		// 兜底：挂首个其他环境（前端通常已传目标）
+		var fallback int
+		var fbKey string
+		db.QueryRow("SELECT MIN(id), COALESCE((SELECT env_key FROM environments WHERE id = (SELECT MIN(id) FROM environments WHERE id != ?)), '')", req.ID).Scan(&fallback, &fbKey)
+		if fallback > 0 {
+			if fbKey == "" {
+				fbKey = fmt.Sprintf("env_%d", fallback)
+			}
+			moveScriptsDir(oldKey, fbKey)
+			db.Exec("UPDATE scripts SET environment_id = ? WHERE environment_id = ?", fallback, req.ID)
+		}
+	}
+
+	if cmdCount > 0 {
+		// 级联清理批量任务中引用的命令
+		_, _ = db.Exec("DELETE FROM batch_task_items WHERE command_id IN (SELECT id FROM commands WHERE environment_id = ?)", req.ID)
+		_, err = db.Exec("DELETE FROM commands WHERE environment_id = ?", req.ID)
+		if err != nil {
+			slog.Error("删除环境命令失败", "envId", req.ID, "error", err)
+			return DeleteEnvResponse{Success: false, Message: "删除命令失败: " + err.Error()}
+		}
+		slog.Info("已删除环境下的命令", "env", envName, "count", cmdCount)
+	}
+
+	_, err = db.Exec("DELETE FROM environments WHERE id = ?", req.ID)
+	if err != nil {
+		slog.Error("删除环境失败", "id", req.ID, "error", err)
+		return DeleteEnvResponse{Success: false, Message: "删除失败: " + err.Error()}
+	}
+
+	slog.Info("环境删除成功", "id", req.ID, "name", envName, "targetKey", newKey, "deletedCommands", cmdCount)
+	return DeleteEnvResponse{Success: true, Message: "环境「" + envName + "」已删除，脚本迁移至「" + targetName + "」", DeletedCount: cmdCount}
 }
 
 // ==================== 命令管理 API ====================
@@ -238,7 +564,7 @@ func (s *OpsService) GetCommands(req GetCommandsRequest) CommandsResponse {
 
 // normalizeInterpreter 规范化脚本解释器
 // 合法值：cmd（默认）/ powershell / bash；非法值回退 cmd。
-// 非本地执行模式（ssh）下脚本由远端环境解析，解释器强制回退 cmd。
+// 非本地执行模式（ssh/redis/mysql/tdengine）下脚本由远端环境解析，解释器强制回退 cmd。
 func normalizeInterpreter(interpreter, mode string) string {
 	if mode != "" && mode != "terminal" {
 		return "cmd"
@@ -500,6 +826,9 @@ func (s *OpsService) DeleteCommand(req DeleteCommandRequest) DeleteCommandRespon
 		slog.Info("删除命令时自动停止流式执行", "id", req.ID, "name", cmdName)
 	}
 	s.mu.Unlock()
+
+	// 级联清理批量任务中引用的命令（任务保留，前端提示含已删除命令）
+	_, _ = db.Exec("DELETE FROM batch_task_items WHERE command_id = ?", req.ID)
 
 	_, err = db.Exec("DELETE FROM commands WHERE id = ?", req.ID)
 	if err != nil {
