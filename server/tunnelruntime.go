@@ -124,6 +124,13 @@ func (tr *TunnelRuntime) GetStatus(id int) (tunnel.Status, bool) {
 	return tnl.Status(), true
 }
 
+// GetRunningCount 获取运行中的隧道数量
+func (tr *TunnelRuntime) GetRunningCount() int {
+	tr.mu.RLock()
+	defer tr.mu.RUnlock()
+	return len(tr.tunnels)
+}
+
 // GetLogs 获取隧道日志（未运行/不存在时返回空）
 func (tr *TunnelRuntime) GetLogs(id int) []tunnel.LogEntry {
 	tr.mu.RLock()

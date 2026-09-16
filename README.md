@@ -6,7 +6,7 @@
 
 OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工具。单二进制分发，本地 SQLite 存储，敏感凭据加密保护，让日常服务器运维轻快如一瞬闪电。
 
-> 当前版本：v0.5.0 · License：MIT
+> 当前版本：v0.5.1 · License：MIT
 
 ## 仓库地址
 
@@ -22,13 +22,14 @@ OpsFlash 是一款基于 **Wails v3 + Go + Vue 3** 的跨平台桌面运维工�
 - **指令编排**：从命令库 / 脚本库选取步骤按序组合成批量任务；遇错停止 / 忽略错误两种依赖策略，顺序执行 + 进度面板实时观测，脚本步骤支持 `{{var}}` 流程参数注入
 - **数据库执行**：Redis 指令（go-redis）、MySQL / TDengine SQL（taosAdapter REST 免 CGO）一键执行，查询结果以结构化表格展示在终端面板
 - **脚本库**：bat / ps1 / sh 脚本统一管理（环境分组、在线编辑、重命名、一键执行）；ConPTY 实时输出、多会话并行、可停止；Windows 走 WSL bash / Git Bash（自动探测路径挂载）
+- **执行记录**：全量记录命令、脚本、批量任务、隧道操作的执行历史（状态、输出、耗时、操作者），首页仪表盘统计 + 执行记录页面筛选/搜索/分页/详情查看
 - **桌面体验**：系统托盘（关闭最小化）、每日日志文件
 
 ## 技术栈
 
 | 层 | 技术 |
 |----|------|
-| 桌面框架 | [Wails v3](https://wails.io/)（v3.0.0-beta.4） |
+| 桌面框架 | [Wails v3](https://v3.wails.io/)（v3.0.0-beta.16） |
 | 后端语言 | Go 1.25 |
 | 前端 | Vue 3 + TypeScript + Vite 8 |
 | SSH | golang.org/x/crypto/ssh（纯 Go，无 CGO） |
@@ -85,6 +86,7 @@ task build:server   # 或 task run:server
 │   ├── tunnelcontrol.go    # 隧道启停/分组控制
 │   ├── tunnelruntime.go    # 隧道运行时管理
 │   ├── scriptservice.go    # 脚本库（CRUD + 执行 + 环境管理）
+│   ├── dashboardservice.go # 首页仪表盘 + 执行记录（CRUD + 统计）
 │   ├── scriptenv.go        # 环境 CRUD（命令库/脚本库归属）
 │   ├── cmd/                # 命令构造（cmd/powershell/bash + WSL 路径转换）
 │   ├── pty/                # PTY 传输层（Windows ConPTY / Unix creack/pty）
@@ -93,7 +95,7 @@ task build:server   # 或 task run:server
 │   ├── secret/             # 凭据加密（DPAPI / AES-256-GCM）
 │   └── tunnel/             # 隧道实现（local/remote/dynamic）
 ├── frontend/               # Vue 3 前端
-│   └── src/components/pages/  # 页面：登录/首页/运维操作/命令库/脚本库/连接/隧道/环境/用户
+│   └── src/components/pages/  # 页面：登录/首页/运维操作/命令库/脚本库/连接/隧道/环境/用户/执行记录
 ├── docs/                   # 设计文档与数据库结构
 └── build/                  # 平台打包配置
 ```
@@ -114,6 +116,7 @@ task build:server   # 或 task run:server
 
 - [连接设计](./docs/connections-design.md)
 - [隧道设计](./docs/tunnel-design.md)
+- [执行记录设计](./docs/execution-log-design.md)
 - [数据库结构](./docs/database-schema.sql)
 
 ## 软件截图

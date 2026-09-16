@@ -139,6 +139,32 @@ func InitDB() error {
 			FOREIGN KEY (connection_id) REFERENCES connections(id)
 		);
 		CREATE INDEX IF NOT EXISTS idx_tunnels_connection ON tunnels(connection_id);
+		CREATE TABLE IF NOT EXISTS execution_logs (
+			id              INTEGER PRIMARY KEY AUTOINCREMENT,
+			operation_type  TEXT NOT NULL,
+			target_id       INTEGER NOT NULL,
+			target_name     TEXT NOT NULL,
+			action          TEXT NOT NULL,
+			environment_id  INTEGER DEFAULT 0,
+			environment_name TEXT DEFAULT '',
+			mode            TEXT DEFAULT '',
+			connection_id   INTEGER DEFAULT 0,
+			connection_name TEXT DEFAULT '',
+			status          TEXT NOT NULL DEFAULT 'running',
+			exit_code       INTEGER DEFAULT 0,
+			output          TEXT DEFAULT '',
+			error_message   TEXT DEFAULT '',
+			started_at      DATETIME NOT NULL,
+			finished_at     DATETIME,
+			duration_ms     INTEGER DEFAULT 0,
+			username        TEXT DEFAULT '',
+			created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+		CREATE INDEX IF NOT EXISTS idx_exec_logs_target ON execution_logs(operation_type, target_id);
+		CREATE INDEX IF NOT EXISTS idx_exec_logs_env ON execution_logs(environment_id);
+		CREATE INDEX IF NOT EXISTS idx_exec_logs_started ON execution_logs(started_at);
+		CREATE INDEX IF NOT EXISTS idx_exec_logs_status ON execution_logs(status);
+		CREATE INDEX IF NOT EXISTS idx_exec_logs_user ON execution_logs(username);
 	`)
 	if err != nil {
 		slog.Error("创建数据库表失败", "error", err)
@@ -194,6 +220,37 @@ func InitDB() error {
 	}
 	// 环境 key 唯一索引（迁移后所有环境均有非空 key）
 	_, _ = db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_environments_key ON environments(env_key)")
+
+	// 迁移：创建 execution_logs 执行记录表（若不存在）
+	_, _ = db.Exec(`
+		CREATE TABLE IF NOT EXISTS execution_logs (
+			id              INTEGER PRIMARY KEY AUTOINCREMENT,
+			operation_type  TEXT NOT NULL,
+			target_id       INTEGER NOT NULL,
+			target_name     TEXT NOT NULL,
+			action          TEXT NOT NULL,
+			environment_id  INTEGER DEFAULT 0,
+			environment_name TEXT DEFAULT '',
+			mode            TEXT DEFAULT '',
+			connection_id   INTEGER DEFAULT 0,
+			connection_name TEXT DEFAULT '',
+			status          TEXT NOT NULL DEFAULT 'running',
+			exit_code       INTEGER DEFAULT 0,
+			output          TEXT DEFAULT '',
+			error_message   TEXT DEFAULT '',
+			started_at      DATETIME NOT NULL,
+			finished_at     DATETIME,
+			duration_ms     INTEGER DEFAULT 0,
+			username        TEXT DEFAULT '',
+			created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_exec_logs_target ON execution_logs(operation_type, target_id)")
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_exec_logs_env ON execution_logs(environment_id)")
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_exec_logs_started ON execution_logs(started_at)")
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_exec_logs_status ON execution_logs(status)")
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_exec_logs_user ON execution_logs(username)")
+	slog.Info("execution_logs 表迁移完成")
 
 	// 去除「通用」概念：将 environment_id=0 的脚本改挂首个环境
 	var firstEnvID int

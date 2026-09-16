@@ -621,11 +621,47 @@ func (s *BatchService) StartBatchTask(req StartBatchTaskRequest) StartBatchTaskR
 
 // runBatch 顺序执行任务全部命令（goroutine 内运行）
 func (s *BatchService) runBatch(run *batchRun) {
+	// 创建执行记录
+	startTime := run.startedAt.Format("2006-01-02 15:04:05")
+	logID, _ := CreateExecutionLog(&ExecutionLog{
+		OperationType: "batch_task",
+		TargetID:      int64(run.taskId),
+		TargetName:    run.taskName,
+		Action:        "execute",
+		Status:        "running",
+		StartedAt:     startTime,
+	})
+
 	defer func() {
 		run.mu.Lock()
 		run.done = true
 		run.finishedAt = time.Now()
 		run.mu.Unlock()
+
+		// 更新执行记录
+		if logID > 0 {
+			elapsed := run.finishedAt.Sub(run.startedAt).Milliseconds()
+			status := "success"
+			output := ""
+			errorMsg := ""
+
+			// 检查是否有失败的步骤
+			for _, item := range run.items {
+				if item.status == "failed" {
+					status = "failed"
+					errorMsg = item.errMsg
+					output = item.output
+					break
+				}
+			}
+			if run.stopped {
+				status = "stopped"
+				errorMsg = "任务被手动停止"
+			}
+
+			UpdateExecutionLog(logID, status, 0, output, errorMsg, elapsed)
+		}
+
 		slog.Info("批量任务执行结束", "runId", run.runId, "taskId", run.taskId, "name", run.taskName)
 	}()
 

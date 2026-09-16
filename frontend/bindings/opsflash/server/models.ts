@@ -128,6 +128,25 @@ export interface BatchTunnelFailure {
 }
 
 /**
+ * ClearExecutionLogsRequest 清空执行记录请求
+ */
+export interface ClearExecutionLogsRequest {
+    "token": string;
+    "operationType": string;
+    "status": string;
+    "search": string;
+}
+
+/**
+ * ClearExecutionLogsResponse 清空执行记录响应
+ */
+export interface ClearExecutionLogsResponse {
+    "success": boolean;
+    "message": string;
+    "count": number;
+}
+
+/**
  * Command 命令信息
  */
 export interface Command {
@@ -403,6 +422,19 @@ export interface CreateUserRequest {
     "role": string;
 }
 
+/**
+ * DashboardStats 首页统计数据
+ */
+export interface DashboardStats {
+    "today_success": number;
+    "today_failed": number;
+    "success_rate": number;
+    "running_tunnels": number;
+    "top_executed": TopExecutedItem[] | null;
+    "recent_executions": ExecutionLog[] | null;
+    "recent_failed": ExecutionLog[] | null;
+}
+
 export interface DeleteBatchTaskRequest {
     "token": string;
     "id": number;
@@ -513,6 +545,40 @@ export interface EnvironmentsResponse {
 export type EventEmitter = any;
 
 /**
+ * ExecutionLog 执行记录
+ */
+export interface ExecutionLog {
+    "id": number;
+    "operation_type": string;
+    "target_id": number;
+    "target_name": string;
+    "action": string;
+    "environment_id": number;
+    "environment_name": string;
+    "mode": string;
+    "connection_id": number;
+    "connection_name": string;
+    "status": string;
+    "exit_code": number;
+    "output": string;
+    "error_message": string;
+    "started_at": string;
+    "finished_at": string | null;
+    "duration_ms": number;
+    "username": string;
+    "created_at": string;
+}
+
+/**
+ * ExecutionLogsResponse 获取执行记录响应
+ */
+export interface ExecutionLogsResponse {
+    "success": boolean;
+    "total": number;
+    "items": ExecutionLog[] | null;
+}
+
+/**
  * ExportTunnelsRequest 导出请求
  */
 export interface ExportTunnelsRequest {
@@ -570,6 +636,19 @@ export interface GetConnectionsRequest {
  */
 export interface GetEnvironmentsRequest {
     "token": string;
+}
+
+/**
+ * GetExecutionLogsRequest 获取执行记录请求
+ */
+export interface GetExecutionLogsRequest {
+    "token": string;
+    "page": number;
+    "pageSize": number;
+    "operationType": string;
+    "status": string;
+    "environmentId": number;
+    "search": string;
 }
 
 export interface GetInteractiveOutputRequest {
@@ -929,6 +1008,15 @@ export interface TestConnectionResponse {
     "success": boolean;
     "message": string;
     "latencyMs": number;
+}
+
+/**
+ * TopExecutedItem 最常执行项
+ */
+export interface TopExecutedItem {
+    "operation_type": string;
+    "target_name": string;
+    "execute_count": number;
 }
 
 /**

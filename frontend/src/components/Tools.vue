@@ -9,6 +9,7 @@ import BatchPage from './pages/BatchPage.vue'
 import ScriptsPage from './pages/ScriptsPage.vue'
 import EnvironmentPage from './pages/EnvironmentPage.vue'
 import TunnelPage from './pages/TunnelPage.vue'
+import ExecutionLogsPage from './pages/ExecutionLogsPage.vue'
 
 const props = defineProps<{
   username: string
@@ -20,7 +21,7 @@ const emit = defineEmits<{
 }>()
 
 // --- 导航 ---
-type NavKey = 'home' | 'users' | 'ops' | 'connections' | 'tunnels' | 'batch' | 'scripts' | 'env'
+type NavKey = 'home' | 'users' | 'ops' | 'connections' | 'tunnels' | 'batch' | 'scripts' | 'env' | 'logs'
 const activeNav = ref<NavKey>('home')
 
 // 侧边栏收起/展开（默认收起；用户手动展开后记住状态）
@@ -48,7 +49,7 @@ function handleNavigate(key: NavKey, connectionId?: number) {
   activeNav.value = key
 }
 
-const pageTitle = computed(() => ({ home: '首页', users: '用户管理', ops: '命令库', connections: '连接管理', tunnels: '隧道管理', batch: '运维操作', scripts: '脚本库', env: '环境管理' }[activeNav.value]))
+const pageTitle = computed(() => ({ home: '首页', users: '用户管理', ops: '命令库', connections: '连接管理', tunnels: '隧道管理', batch: '运维操作', scripts: '脚本库', env: '环境管理', logs: '执行记录' }[activeNav.value]))
 
 const currentPage = computed(() => {
   switch (activeNav.value) {
@@ -60,6 +61,7 @@ const currentPage = computed(() => {
     case 'batch': return BatchPage
     case 'scripts': return ScriptsPage
     case 'env': return EnvironmentPage
+    case 'logs': return ExecutionLogsPage
     default: return null
   }
 })
@@ -155,6 +157,11 @@ const tunnelActive = computed(() => tunnelSummary.value.running > 0)
           <svg viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span v-show="!sidebarCollapsed">用户管理</span>
         </a>
+        <div class="nav-divider"></div>
+        <a class="nav-item" :class="{ active: activeNav === 'logs' }" href="#" title="执行记录" @click.prevent="switchNav('logs')">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="9" x2="8" y2="9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span v-show="!sidebarCollapsed">执行记录</span>
+        </a>
       </nav>
 
       <!-- 侧边栏收起/展开按钮 -->
@@ -239,6 +246,7 @@ const tunnelActive = computed(() => tunnelSummary.value.running > 0)
 .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
 .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
 .nav-item.active { background: rgba(255,0,110,0.15); color: #FF77B0; font-weight: 700; }
+.nav-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 8px 0; }
 
 /* 侧边栏收起态 */
 .sidebar-collapsed { width: 64px; padding-left: 12px; padding-right: 12px; }

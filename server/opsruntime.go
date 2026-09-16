@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -142,20 +143,27 @@ type interactiveSession struct {
 
 // RunCommand 执行非交互式命令
 func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
-	if _, ok := validateSession(req.Token); !ok {
+	username, ok := validateSession(req.Token)
+	if !ok {
 		return RunCommandResponse{Success: false, Message: "会话已过期"}
 	}
 
 	var cmdName, cmdText, cmdType, mode, envName, interpreter string
-	var connID int
-	err := db.QueryRow(`SELECT c.name, c.command, c.type, c.mode, COALESCE(c.connection_id, 0), e.name, COALESCE(c.interpreter, 'cmd') FROM commands c
+	var connID, envID int
+	var connName string
+	err := db.QueryRow(`SELECT c.name, c.command, c.type, c.mode, COALESCE(c.connection_id, 0), e.id, e.name, COALESCE(c.interpreter, 'cmd') FROM commands c
 		INNER JOIN environments e ON c.environment_id = e.id
-		WHERE c.id = ?`, req.ID).Scan(&cmdName, &cmdText, &cmdType, &mode, &connID, &envName, &interpreter)
+		WHERE c.id = ?`, req.ID).Scan(&cmdName, &cmdText, &cmdType, &mode, &connID, &envID, &envName, &interpreter)
 	if err == sql.ErrNoRows {
 		return RunCommandResponse{Success: false, Message: "命令不存在"}
 	}
 	if err != nil {
 		return RunCommandResponse{Success: false, Message: "查询失败: " + err.Error()}
+	}
+
+	// 获取连接名称
+	if connID > 0 {
+		db.QueryRow("SELECT name FROM connections WHERE id = ?", connID).Scan(&connName)
 	}
 
 	if cmdType != "non-interactive" {
@@ -168,13 +176,36 @@ func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
 
 	slog.Info("执行非交互式命令", "id", req.ID, "name", cmdName, "env", envName, "mode", mode, "interpreter", interpreter, "command", cmdText)
 
+	// 创建执行记录
+	startTime := time.Now().Format("2006-01-02 15:04:05")
+	logID, _ := CreateExecutionLog(&ExecutionLog{
+		OperationType:   "command",
+		TargetID:        int64(req.ID),
+		TargetName:      cmdName,
+		Action:          "execute",
+		EnvironmentID:   int64(envID),
+		EnvironmentName: envName,
+		Mode:            mode,
+		ConnectionID:    int64(connID),
+		ConnectionName:  connName,
+		Status:          "running",
+		StartedAt:       startTime,
+		Username:        username,
+	})
+
 	// 加载执行器（terminal 本地 / ssh 远程 / 其他模式）
 	conn, err := loadConnectionByID(connID)
 	if err != nil {
+		if logID > 0 {
+			UpdateExecutionLog(logID, "failed", 0, "", err.Error(), 0)
+		}
 		return RunCommandResponse{Success: false, Message: err.Error()}
 	}
 	ex, err := executorFor(mode, conn, interpreter)
 	if err != nil {
+		if logID > 0 {
+			UpdateExecutionLog(logID, "failed", 0, "", err.Error(), 0)
+		}
 		return RunCommandResponse{Success: false, Message: err.Error()}
 	}
 
@@ -189,6 +220,10 @@ func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
 		elapsed := time.Since(start)
 		if qerr != nil {
 			slog.Warn("数据库指令执行失败", "name", cmdName, "mode", mode, "error", qerr, "elapsed", elapsed)
+			// 更新执行记录为失败
+			if logID > 0 {
+				UpdateExecutionLog(logID, "failed", 0, qerr.Error(), qerr.Error(), elapsed.Milliseconds())
+			}
 			return RunCommandResponse{
 				Success: false,
 				Output:  qerr.Error(),
@@ -196,6 +231,15 @@ func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
 			}
 		}
 		slog.Info("数据库指令执行成功", "name", cmdName, "mode", mode, "elapsed", elapsed, "columns", len(result.Columns), "rows", len(result.Rows))
+		// 更新执行记录为成功，保存实际查询结果
+		if logID > 0 {
+			outputJSON, _ := json.Marshal(result)
+			output := string(outputJSON)
+			if len(output) > 50000 {
+				output = output[:50000] + "\n... (输出已截断)"
+			}
+			UpdateExecutionLog(logID, "success", 0, output, "", elapsed.Milliseconds())
+		}
 		return RunCommandResponse{
 			Success:    true,
 			Output:     "查询成功",
@@ -208,7 +252,17 @@ func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
 	// 本地 cmd 多行：按行拆分为独立命令逐条执行、逐行展示结果
 	// （powershell/bash 为整体脚本执行，不拆分；ssh/数据库模式不适用）
 	if mode == "terminal" && interpreter == "cmd" && strings.Contains(cmdText, "\n") {
-		return runCommandLines(ctx, ex, cmdName, cmdText)
+		resp := runCommandLines(ctx, ex, cmdName, cmdText)
+		// 更新执行记录
+		if logID > 0 {
+			elapsed := time.Since(start)
+			status := "success"
+			if !resp.Success {
+				status = "failed"
+			}
+			UpdateExecutionLog(logID, status, 0, resp.Output, resp.Message, elapsed.Milliseconds())
+		}
+		return resp
 	}
 
 	output, err := ex.Run(ctx, cmdText)
@@ -222,6 +276,10 @@ func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			slog.Warn("命令执行超时", "name", cmdName, "timeout", "60s")
+			// 更新执行记录为超时
+			if logID > 0 {
+				UpdateExecutionLog(logID, "timeout", 0, output, "命令执行超时", elapsed.Milliseconds())
+			}
 			return RunCommandResponse{
 				Success: false,
 				Output:  output + "\n[命令执行超时，60秒后自动终止]",
@@ -229,6 +287,10 @@ func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
 			}
 		}
 		slog.Warn("命令执行失败", "name", cmdName, "error", err, "elapsed", elapsed)
+		// 更新执行记录为失败
+		if logID > 0 {
+			UpdateExecutionLog(logID, "failed", 0, output, err.Error(), elapsed.Milliseconds())
+		}
 		return RunCommandResponse{
 			Success: false,
 			Output:  output,
@@ -237,6 +299,10 @@ func (s *OpsService) RunCommand(req RunCommandRequest) RunCommandResponse {
 	}
 
 	slog.Info("命令执行成功", "name", cmdName, "elapsed", elapsed)
+	// 更新执行记录为成功
+	if logID > 0 {
+		UpdateExecutionLog(logID, "success", 0, output, "", elapsed.Milliseconds())
+	}
 	return RunCommandResponse{
 		Success: true,
 		Output:  output,
@@ -312,11 +378,14 @@ type streamSession struct {
 	lines     []string // 待执行行队列
 	lineIdx   int
 	stopped   bool // 用户手动停止
+	logID     int64
+	startTime time.Time
 }
 
 // StartStream 启动非交互式命令的流式执行（管道捕获，无 60s 超时）
 func (s *OpsService) StartStream(req StartStreamRequest) ProcessResponse {
-	if _, ok := validateSession(req.Token); !ok {
+	username, ok := validateSession(req.Token)
+	if !ok {
 		return ProcessResponse{Success: false, Message: "会话已过期"}
 	}
 
@@ -371,6 +440,21 @@ func (s *OpsService) StartStream(req StartStreamRequest) ProcessResponse {
 			return ProcessResponse{Success: false, Message: "启动 SSH 流式执行失败: " + err.Error()}
 		}
 		session := &streamSession{id: req.ID, lines: []string{cmdText}, transport: transport}
+		// 创建执行记录
+		startTime := time.Now().Format("2006-01-02 15:04:05")
+		logID, _ := CreateExecutionLog(&ExecutionLog{
+			OperationType:   "command",
+			TargetID:        int64(req.ID),
+			TargetName:      cmdName,
+			Action:          "execute",
+			Mode:            mode,
+			ConnectionID:    int64(connID),
+			Status:          "running",
+			StartedAt:       startTime,
+			Username:        username,
+		})
+		session.logID = logID
+		session.startTime = time.Now()
 		s.mu.Lock()
 		s.streamSessions[req.ID] = session
 		s.mu.Unlock()
@@ -393,6 +477,20 @@ func (s *OpsService) StartStream(req StartStreamRequest) ProcessResponse {
 	}
 
 	session := &streamSession{id: req.ID, lines: lines}
+	// 创建执行记录
+	startTime := time.Now().Format("2006-01-02 15:04:05")
+	logID, _ := CreateExecutionLog(&ExecutionLog{
+		OperationType: "command",
+		TargetID:      int64(req.ID),
+		TargetName:    cmdName,
+		Action:        "execute",
+		Mode:          mode,
+		Status:        "running",
+		StartedAt:     startTime,
+		Username:      username,
+	})
+	session.logID = logID
+	session.startTime = time.Now()
 	s.mu.Lock()
 	s.streamSessions[req.ID] = session
 	s.mu.Unlock()
@@ -403,6 +501,9 @@ func (s *OpsService) StartStream(req StartStreamRequest) ProcessResponse {
 			s.mu.Lock()
 			delete(s.streamSessions, req.ID)
 			s.mu.Unlock()
+			if session.logID > 0 {
+				UpdateExecutionLog(session.logID, "failed", 0, "", "启动会话失败: "+err.Error(), 0)
+			}
 			slog.Error("启动交互 shell 失败", "id", req.ID, "name", cmdName, "interpreter", interpreter, "error", err)
 			return ProcessResponse{Success: false, Message: "启动会话失败: " + err.Error()}
 		}
@@ -444,7 +545,24 @@ func (s *OpsService) runSSHStream(session *streamSession, transport pty.Transpor
 		session.mu.Lock()
 		session.done = true
 		exitErr := session.exitError
+		output := string(session.output)
 		session.mu.Unlock()
+		// 更新执行记录
+		if session.logID > 0 {
+			elapsed := time.Since(session.startTime).Milliseconds()
+			status := "success"
+			if exitErr != "" {
+				status = "failed"
+			}
+			if session.stopped {
+				status = "stopped"
+				exitErr = "命令被手动停止"
+			}
+			if len(output) > 50000 {
+				output = output[:50000] + "\n... (输出已截断)"
+			}
+			UpdateExecutionLog(session.logID, status, 0, output, exitErr, elapsed)
+		}
 		s.emitTerminalOutput(session.id, "", true, exitErr)
 	}()
 
@@ -876,7 +994,24 @@ func (s *OpsService) runSessionLines(session *streamSession, transport pty.Trans
 		session.mu.Lock()
 		session.done = true
 		exitErr := session.exitError
+		output := string(session.output)
 		session.mu.Unlock()
+		// 更新执行记录
+		if session.logID > 0 {
+			elapsed := time.Since(session.startTime).Milliseconds()
+			status := "success"
+			if exitErr != "" {
+				status = "failed"
+			}
+			if session.stopped {
+				status = "stopped"
+				exitErr = "命令被手动停止"
+			}
+			if len(output) > 50000 {
+				output = output[:50000] + "\n... (输出已截断)"
+			}
+			UpdateExecutionLog(session.logID, status, 0, output, exitErr, elapsed)
+		}
 		// xterm 会话结束信号
 		s.emitTerminalOutput(session.id, "", true, exitErr)
 	}()
@@ -1033,7 +1168,24 @@ func (s *OpsService) runStreamLines(session *streamSession, interpreter string) 
 		session.mu.Lock()
 		session.done = true
 		exitErr := session.exitError
+		output := string(session.output)
 		session.mu.Unlock()
+		// 更新执行记录
+		if session.logID > 0 {
+			elapsed := time.Since(session.startTime).Milliseconds()
+			status := "success"
+			if exitErr != "" {
+				status = "failed"
+			}
+			if session.stopped {
+				status = "stopped"
+				exitErr = "命令被手动停止"
+			}
+			if len(output) > 50000 {
+				output = output[:50000] + "\n... (输出已截断)"
+			}
+			UpdateExecutionLog(session.logID, status, 0, output, exitErr, elapsed)
+		}
 		// xterm 会话结束信号
 		s.emitTerminalOutput(session.id, "", true, exitErr)
 	}()

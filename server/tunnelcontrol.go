@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // ==================== 隧道运行时控制 API ====================
@@ -56,7 +57,8 @@ type TunnelGroupRequest struct {
 
 // StartTunnel 启动指定隧道
 func (s *TunnelService) StartTunnel(req StartTunnelRequest) TunnelStatusResponse {
-	if _, ok := validateSession(req.Token); !ok {
+	username, ok := validateSession(req.Token)
+	if !ok {
 		return TunnelStatusResponse{Success: false, Message: "会话已过期"}
 	}
 
@@ -69,9 +71,33 @@ func (s *TunnelService) StartTunnel(req StartTunnelRequest) TunnelStatusResponse
 		return TunnelStatusResponse{Success: false, Message: "查询失败: " + err.Error()}
 	}
 
+	// 创建执行记录
+	startTime := time.Now().Format("2006-01-02 15:04:05")
+	logID, _ := CreateExecutionLog(&ExecutionLog{
+		OperationType: "tunnel",
+		TargetID:      int64(req.ID),
+		TargetName:    t.Name,
+		Action:        "start",
+		Status:        "running",
+		StartedAt:     startTime,
+		Username:      username,
+	})
+
+	start := time.Now()
 	if err := tunnelRT.StartTunnel(t); err != nil {
+		elapsed := time.Since(start).Milliseconds()
 		slog.Error("启动隧道失败", "id", req.ID, "name", t.Name, "error", err)
+		// 更新执行记录为失败
+		if logID > 0 {
+			UpdateExecutionLog(logID, "failed", 0, "", err.Error(), elapsed)
+		}
 		return TunnelStatusResponse{Success: false, Message: err.Error()}
+	}
+
+	elapsed := time.Since(start).Milliseconds()
+	// 更新执行记录为成功
+	if logID > 0 {
+		UpdateExecutionLog(logID, "success", 0, "", "", elapsed)
 	}
 
 	return TunnelStatusResponse{Success: true, Message: "隧道「" + t.Name + "」已启动", Running: true}
@@ -79,7 +105,8 @@ func (s *TunnelService) StartTunnel(req StartTunnelRequest) TunnelStatusResponse
 
 // StopTunnel 停止指定隧道
 func (s *TunnelService) StopTunnel(req StopTunnelRequest) TunnelStatusResponse {
-	if _, ok := validateSession(req.Token); !ok {
+	username, ok := validateSession(req.Token)
+	if !ok {
 		return TunnelStatusResponse{Success: false, Message: "会话已过期"}
 	}
 
@@ -92,7 +119,27 @@ func (s *TunnelService) StopTunnel(req StopTunnelRequest) TunnelStatusResponse {
 		return TunnelStatusResponse{Success: false, Message: "查询失败: " + err.Error()}
 	}
 
+	// 创建执行记录
+	startTime := time.Now().Format("2006-01-02 15:04:05")
+	logID, _ := CreateExecutionLog(&ExecutionLog{
+		OperationType: "tunnel",
+		TargetID:      int64(req.ID),
+		TargetName:    tunnelName,
+		Action:        "stop",
+		Status:        "running",
+		StartedAt:     startTime,
+		Username:      username,
+	})
+
+	start := time.Now()
 	tunnelRT.StopTunnel(req.ID)
+	elapsed := time.Since(start).Milliseconds()
+
+	// 更新执行记录为成功
+	if logID > 0 {
+		UpdateExecutionLog(logID, "success", 0, "", "", elapsed)
+	}
+
 	return TunnelStatusResponse{Success: true, Message: "隧道「" + tunnelName + "」已停止", Running: false}
 }
 

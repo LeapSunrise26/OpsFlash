@@ -47,18 +47,12 @@ func main() {
 	closeLogger := setupLogging()
 	defer closeLogger()
 
-	// 初始化 SQLite 数据库
-	if err := server.InitDB(); err != nil {
-		slog.Error("初始化数据库失败", "error", err)
-		log.Fatalf("初始化数据库失败: %v", err)
-	}
-	defer server.CloseDB()
-
 	// 创建运维服务实例（持有引用以便退出时清理守护进程/交互式会话）
 	opsSvc := &server.OpsService{}
 
-	// 自动启动 auto_start=1 的隧道
-	server.AutoStartTunnels()
+	// 主窗口句柄先声明：供单实例回调捕获（回调仅在第二实例启动时触发，
+	// 彼时窗口早已创建并赋值，故此处为 nil 无妨）
+	var window application.Window
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -68,6 +62,17 @@ func main() {
 	app := application.New(application.Options{
 		Name:        AppName,
 		Description: "OpsFlash 运维工具",
+		// 单实例：Windows 命名 Mutex 互斥 + 隐藏窗口 WM_COPYDATA 通知。
+		// 第二个实例在 application.New 内部即被拦截并 os.Exit 退出（不会走到下方
+		// 的 DB 初始化 / 隧道自启），同时触发首实例回调唤起主窗口（与托盘点击一致）。
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "com.opsflash.app",
+			OnSecondInstanceLaunch: func(_ application.SecondInstanceData) {
+				// 二次启动 → 唤起已在托盘/后台运行的首实例主窗口
+				window.Show()
+				window.Focus()
+			},
+		},
 		Services: []application.Service{
 			application.NewService(&server.GreetService{}),
 			application.NewService(&server.AuthService{}),
@@ -77,6 +82,7 @@ func main() {
 			application.NewService(&server.BatchService{}),
 			application.NewService(&server.ScriptsService{}),
 			application.NewService(&server.TunnelService{}),
+			application.NewService(&server.DashboardService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -85,6 +91,19 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+
+	// ⚠️ 以下代码仅第一实例执行：第二实例已在 application.New 内部（单实例锁）
+	// os.Exit 退出，因此 DB 初始化 / 隧道自启等副作用不会在第二实例上重复发生。
+
+	// 初始化 SQLite 数据库
+	if err := server.InitDB(); err != nil {
+		slog.Error("初始化数据库失败", "error", err)
+		log.Fatalf("初始化数据库失败: %v", err)
+	}
+	defer server.CloseDB()
+
+	// 自动启动 auto_start=1 的隧道
+	server.AutoStartTunnels()
 
 	// 注入终端输出事件发射器（xterm 事件流）
 	opsSvc.SetEventEmitter(app.Event)
@@ -96,7 +115,7 @@ func main() {
 	// 'Mac' options tailor the window when running on macOS.
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
-	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
+	window = app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: AppName,
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:  1060,

@@ -4,6 +4,7 @@
 import * as AuthService from "./authservice.js";
 import * as BatchService from "./batchservice.js";
 import * as ConnService from "./connservice.js";
+import * as DashboardService from "./dashboardservice.js";
 import * as GreetService from "./greetservice.js";
 import * as OpsService from "./opsservice.js";
 import * as ScriptsService from "./scriptsservice.js";
@@ -13,6 +14,7 @@ export {
     AuthService,
     BatchService,
     ConnService,
+    DashboardService,
     GreetService,
     OpsService,
     ScriptsService,
@@ -29,6 +31,8 @@ export type {
     BatchTaskResponse,
     BatchTasksResponse,
     BatchTunnelFailure,
+    ClearExecutionLogsRequest,
+    ClearExecutionLogsResponse,
     Command,
     CommandResponse,
     CommandsResponse,
@@ -44,6 +48,7 @@ export type {
     CreateTunnelsRequest,
     CreateTunnelsResponse,
     CreateUserRequest,
+    DashboardStats,
     DeleteBatchTaskRequest,
     DeleteBatchTaskResponse,
     DeleteCommandRequest,
@@ -59,6 +64,8 @@ export type {
     Environment,
     EnvironmentsResponse,
     EventEmitter,
+    ExecutionLog,
+    ExecutionLogsResponse,
     ExportTunnelsRequest,
     ExportTunnelsResponse,
     GetBatchTaskProgressRequest,
@@ -67,6 +74,7 @@ export type {
     GetCommandsRequest,
     GetConnectionsRequest,
     GetEnvironmentsRequest,
+    GetExecutionLogsRequest,
     GetInteractiveOutputRequest,
     GetInteractiveOutputResponse,
     GetStreamOutputRequest,
@@ -111,6 +119,7 @@ export type {
     TestConnectionConfigRequest,
     TestConnectionRequest,
     TestConnectionResponse,
+    TopExecutedItem,
     Tunnel,
     TunnelExport,
     TunnelGroupRequest,

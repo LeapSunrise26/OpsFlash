@@ -606,6 +606,17 @@ func (s *ScriptsService) runScriptProcess(run *scriptRun, transport pty.Transpor
 		defer os.Remove(cleanup)
 	}
 
+	// 创建执行记录
+	startTime := run.startedAt.Format("2006-01-02 15:04:05")
+	logID, _ := CreateExecutionLog(&ExecutionLog{
+		OperationType: "script",
+		TargetID:      int64(run.scriptID),
+		TargetName:    run.name + "." + run.typ,
+		Action:        "execute",
+		Status:        "running",
+		StartedAt:     startTime,
+	})
+
 	// 读取 goroutine（与 runStreamLines 一致：跨帧剥噪声 + OSC + 实时累积）
 	decoder := &outputDecoder{}
 	buf := make([]byte, 8192)
@@ -650,7 +661,27 @@ func (s *ScriptsService) runScriptProcess(run *scriptRun, transport pty.Transpor
 		run.exitCode = exitCodeFromErr(werr)
 	}
 	run.transport = nil
+	output := string(run.output)
 	run.mu.Unlock()
+
+	// 更新执行记录
+	if logID > 0 {
+		status := "success"
+		errorMsg := ""
+		if run.exitCode != 0 {
+			status = "failed"
+			errorMsg = run.exitError
+		}
+		if run.stopped {
+			status = "stopped"
+			errorMsg = "脚本被手动停止"
+		}
+		// 截断输出
+		if len(output) > 50000 {
+			output = output[:50000] + "\n... (输出已截断)"
+		}
+		UpdateExecutionLog(logID, status, run.exitCode, output, errorMsg, run.duration)
+	}
 
 	slog.Info("脚本执行结束", "id", run.scriptID, "name", run.name+"."+run.typ,
 		"durationMs", run.duration, "exitCode", run.exitCode, "error", run.exitError)
