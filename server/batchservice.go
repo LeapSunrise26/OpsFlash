@@ -3,17 +3,13 @@ package server
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"log/slog"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"opsflash/server/pty"
 )
 
 // ==================== 批量执行模块 ====================
@@ -92,9 +88,8 @@ type DeleteBatchTaskRequest struct {
 }
 
 type StartBatchTaskRequest struct {
-	Token      string `json:"token"`
-	ID         int    `json:"id"`
-	ParamsJson string `json:"paramsJson"` // 流程参数 {"version":"1.2.3"}，注入脚本步骤 args 的 {{key}}
+	Token string `json:"token"`
+	ID    int    `json:"id"`
 }
 
 type GetBatchTaskProgressRequest struct {
@@ -167,7 +162,6 @@ type batchRun struct {
 	taskId     int
 	taskName   string
 	policy     string
-	params     map[string]string // 流程参数（脚本步骤 args 的 {{key}} 注入）
 	items      []*batchRunItem
 	mu         sync.Mutex
 	done       bool
@@ -285,14 +279,8 @@ func loadBatchTask(id int) (*BatchTask, []BatchTaskItem, error) {
 	}
 
 	rows, err := db.Query(`SELECT i.id, i.task_id, i.command_id, i.script_id, COALESCE(i.args, ''), i.sort_order,
-		CASE WHEN i.script_id > 0 THEN
-			(SELECT name FROM scripts sc WHERE sc.id = i.script_id)
-		ELSE
-			(SELECT name FROM commands c WHERE c.id = i.command_id)
-		END AS item_name,
-		CASE WHEN i.script_id > 0 THEN 'script' ELSE
-			COALESCE((SELECT mode FROM commands c WHERE c.id = i.command_id), 'terminal')
-		END AS item_mode
+		COALESCE((SELECT name FROM commands c WHERE c.id = i.command_id), '') AS item_name,
+		COALESCE((SELECT mode FROM commands c WHERE c.id = i.command_id), 'terminal') AS item_mode
 		FROM batch_task_items i
 		WHERE i.task_id = ? ORDER BY i.sort_order ASC, i.id ASC`, id)
 	if err != nil {
@@ -307,11 +295,7 @@ func loadBatchTask(id int) (*BatchTask, []BatchTaskItem, error) {
 			&it.SortOrder, &it.Name, &it.Mode); err != nil {
 			continue
 		}
-		if it.ScriptId > 0 {
-			it.Kind = "script"
-		} else {
-			it.Kind = "command"
-		}
+		it.Kind = "command" // 所有步骤现在都是命令
 		items = append(items, it)
 	}
 	return &t, items, nil
@@ -367,23 +351,29 @@ func validateBatchItems(items []BatchItemInput, legacyIds []int) ([]BatchItemInp
 			seen[key] = true
 			valid = append(valid, BatchItemInput{CommandId: st.CommandId})
 		} else if st.ScriptId > 0 {
-			// 脚本步骤：存在
-			var scName string
-			err := db.QueryRow("SELECT name FROM scripts WHERE id = ?", st.ScriptId).Scan(&scName)
+			// 向后兼容：脚本步骤转换为命令步骤（按名称查找）
+			var cmdID int
+			var cmdType string
+			err := db.QueryRow(`SELECT id, type FROM commands WHERE name = (
+				SELECT name FROM scripts WHERE id = ?
+			) LIMIT 1`, st.ScriptId).Scan(&cmdID, &cmdType)
 			if err == sql.ErrNoRows {
 				return nil, errors.New("脚本 #" + strconv.Itoa(st.ScriptId) + " 不存在")
 			}
 			if err != nil {
 				return nil, err
 			}
-			key := "s" + strconv.Itoa(st.ScriptId)
+			if cmdType != "non-interactive" {
+				return nil, errors.New("脚本命令不是非交互式类型，批量执行仅支持非交互式命令")
+			}
+			key := "c" + strconv.Itoa(cmdID)
 			if seen[key] {
 				continue
 			}
 			seen[key] = true
-			valid = append(valid, BatchItemInput{ScriptId: st.ScriptId, Args: st.Args})
+			valid = append(valid, BatchItemInput{CommandId: cmdID, Args: st.Args})
 		} else {
-			return nil, errors.New("步骤无效：命令或脚本 ID 必须至少一个")
+			return nil, errors.New("步骤无效：命令 ID 必须提供")
 		}
 	}
 	if len(valid) == 0 {
@@ -591,18 +581,13 @@ func (s *BatchService) StartBatchTask(req StartBatchTaskRequest) StartBatchTaskR
 		taskId:    req.ID,
 		taskName:  task.Name,
 		policy:    task.FailurePolicy,
-		params:    parseParamsJson(req.ParamsJson),
 		startedAt: time.Now(),
 	}
 	for _, it := range items {
-		kind := "command"
-		if it.ScriptId > 0 {
-			kind = "script"
-		}
 		run.items = append(run.items, &batchRunItem{
 			commandId: it.CommandId,
-			scriptId:  it.ScriptId,
-			kind:      kind,
+			scriptId:  it.ScriptId, // 向后兼容，迁移后应为 0
+			kind:      "command",
 			name:      it.Name,
 			args:      it.Args,
 			status:    "pending",
@@ -699,17 +684,25 @@ func markSkipped(run *batchRun, from int) {
 	}
 }
 
-// executeBatchItem 执行单条步骤（脚本 / 命令，按 kind 分派）
+// executeBatchItem 执行单条步骤（命令）
 func (s *BatchService) executeBatchItem(run *batchRun, item *batchRunItem) {
 	start := time.Now()
 
-	// ==================== 脚本步骤 ====================
-	if item.kind == "script" {
-		s.executeScriptItem(run, item, start)
-		return
+	// 向后兼容：如果 scriptId > 0，查找对应的命令（按名称查找）
+	if item.scriptId > 0 && item.commandId == 0 {
+		var scriptName string
+		err := db.QueryRow("SELECT name FROM scripts WHERE id = ?", item.scriptId).Scan(&scriptName)
+		if err == nil {
+			// 查找对应的命令（名称匹配）
+			_ = db.QueryRow("SELECT id FROM commands WHERE name = ? LIMIT 1", scriptName).Scan(&item.commandId)
+		}
+		if item.commandId == 0 {
+			finishBatchItem(item, start, "", errors.New("脚本不存在（可能已被删除）"))
+			return
+		}
 	}
 
-	// ==================== 命令步骤（现有逻辑） ====================
+	// ==================== 命令步骤 ====================
 	var cmdName, cmdText, cmdType, mode, interpreter string
 	var connID int
 	err := db.QueryRow(`SELECT name, command, type, mode, COALESCE(connection_id, 0), COALESCE(interpreter, 'cmd') FROM commands WHERE id = ?`, item.commandId).
@@ -885,128 +878,6 @@ func finishBatchItem(item *batchRunItem, start time.Time, output string, runErr 
 	}
 }
 
-// executeScriptItem 执行脚本步骤（流程参数注入 + ConPTY 流式 + 退出码判定）
-func (s *BatchService) executeScriptItem(run *batchRun, item *batchRunItem, start time.Time) {
-	// 加载脚本
-	sc, err := loadScriptByID(item.scriptId)
-	if err != nil {
-		finishBatchItem(item, start, "", errors.New("脚本不存在（可能已被删除）"))
-		return
-	}
-	// 参数注入：{{var}} → 流程参数
-	args := item.args
-	for k, v := range run.params {
-		args = strings.ReplaceAll(args, "{{"+k+"}}", v)
-	}
-
-	// 准备执行（sh CRLF 转副本）
-	execPath, cleanup, err := prepareScriptForExec(sc)
-	if err != nil {
-		finishBatchItem(item, start, "", err)
-		return
-	}
-	if cleanup != "" {
-		defer os.Remove(cleanup)
-	}
-
-	wrapped := scriptWrapCommand(execPath, sc.Type, args)
-	interpreter := scriptExtToInterpreter[sc.Type]
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	run.mu.Lock()
-	item.cancel = cancel
-	run.mu.Unlock()
-
-	transport, err := pty.StartPTY(wrapped, interpreter)
-	if err != nil {
-		run.mu.Lock()
-		item.cancel = nil
-		run.mu.Unlock()
-		cancel()
-		finishBatchItem(item, start, "", errors.New("脚本启动失败: "+err.Error()))
-		return
-	}
-
-	// 读取 goroutine：实时累积 item.output（与 SSH 批量分支一致，上限 20000）
-	decoder := &outputDecoder{}
-	buf := make([]byte, 8192)
-	readDone := make(chan struct{})
-	stripper := &noiseStripper{}
-	osc := &oscStripper{}
-	go func() {
-		defer close(readDone)
-		for {
-			n, rerr := transport.Read(buf)
-			if n > 0 {
-				data := osc.Process(sanitizeStartupNoise(stripper.Process(decoder.Decode(buf[:n]))))
-				if data != "" {
-					run.mu.Lock()
-					if len(item.output) < 20000 {
-						item.output += data
-					}
-					run.mu.Unlock()
-				}
-			}
-			if rerr != nil {
-				return
-			}
-		}
-	}()
-
-	// 停止（StopBatchTask 调 item.cancel）时终止脚本进程
-	go func() {
-		<-ctx.Done()
-		run.mu.Lock()
-		stopped := run.stopped
-		run.mu.Unlock()
-		if stopped {
-			_ = transport.Kill()
-			_ = transport.Close()
-		}
-	}()
-
-	// 等待结束（60s 超时兜底 + 静默排空尾部输出）
-	waitCh := make(chan error, 1)
-	go func() { waitCh <- transport.Wait() }()
-	var runErr error
-	select {
-	case werr := <-waitCh:
-		runErr = werr
-	case <-ctx.Done():
-		if run.stopped {
-			runErr = errors.New("执行已停止")
-		} else {
-			transport.Kill()
-			transport.Close()
-			<-waitCh
-			runErr = errors.New("执行超时（60 秒）")
-		}
-	}
-	select {
-	case <-readDone:
-	case <-time.After(300 * time.Millisecond):
-		transport.Close()
-		<-readDone
-	}
-	transport.Close()
-
-	run.mu.Lock()
-	item.cancel = nil
-	item.durationMs = time.Since(start).Milliseconds()
-	if runErr != nil {
-		item.errMsg = runErr.Error()
-		item.exitCode = exitCodeFromErr(runErr)
-		item.status = "failed"
-	} else {
-		item.status = "success"
-	}
-	run.mu.Unlock()
-	cancel()
-
-	slog.Info("批量脚本步骤执行结束", "runId", run.runId, "name", item.name,
-		"exitCode", item.exitCode, "durationMs", item.durationMs, "error", item.errMsg)
-}
-
 // GetBatchTaskProgress 获取任务执行进度（前端轮询调用）
 func (s *BatchService) GetBatchTaskProgress(req GetBatchTaskProgressRequest) BatchTaskProgressResponse {
 	if _, ok := validateSession(req.Token); !ok {
@@ -1080,30 +951,4 @@ func (s *BatchService) StopBatchTask(req StopBatchTaskRequest) StopBatchTaskResp
 
 	slog.Info("批量任务已停止", "runId", req.RunId, "taskId", run.taskId, "name", run.taskName)
 	return StopBatchTaskResponse{Success: true, Message: "已停止执行，剩余命令将跳过"}
-}
-
-// parseParamsJson 解析流程参数 JSON（如 {"version":"1.2.3"}），解析失败返回空 map
-func parseParamsJson(raw string) map[string]string {
-	result := make(map[string]string)
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return result
-	}
-	var m map[string]interface{}
-	if err := json.Unmarshal([]byte(raw), &m); err != nil {
-		slog.Warn("解析流程参数失败", "error", err)
-		return result
-	}
-	for k, v := range m {
-		switch val := v.(type) {
-		case string:
-			result[k] = val
-		default:
-			// 非字符串值转为 JSON 文本（数字/布尔等）
-			if b, err := json.Marshal(val); err == nil {
-				result[k] = string(b)
-			}
-		}
-	}
-	return result
 }

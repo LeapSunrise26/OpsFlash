@@ -14,9 +14,9 @@ export function useCommandExec(
   activeEnvId: Ref<number>,
   terminal: Pick<TerminalActions, 'appendTerminal' | 'addLog'>,
 ) {
-  // 命令显示文本：多行脚本每行去掉前导缩进（避免终端里回显/显示错位）
+  // 命令显示文本：多行脚本每行去掉前导缩进（避免终端里回显/显示错位），用 \r\n 换行（xterm convertEol=false）
   function cmdDisplay(cmd: Command): string {
-    return '$ ' + (cmd.command || '').split('\n').map((l) => l.trimStart()).join('\n')
+    return '$ ' + (cmd.command || '').split('\n').map((l) => l.trimStart()).join('\r\n')
   }
   // 正在运行的非交互式命令 ID（ssh/数据库模式一次性执行）
   const runningCmdId = ref<number>(0)
@@ -130,7 +130,7 @@ export function useCommandExec(
           return
         }
         if (res.output) {
-          const lines = res.output.split('\n')
+          const lines = res.output.replace(/\r/g, '').split('\n')
           for (const line of lines) {
             appendTerminal({ type: 'success', text: line })
           }
@@ -139,7 +139,7 @@ export function useCommandExec(
         addLog(cmd.name, '运行', true, res.message)
       } else {
         if (res.output) {
-          const lines = res.output.split('\n')
+          const lines = res.output.replace(/\r/g, '').split('\n')
           for (const line of lines) {
             appendTerminal({ type: 'error', text: line })
           }

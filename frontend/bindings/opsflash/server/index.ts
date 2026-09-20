@@ -7,7 +7,6 @@ import * as ConnService from "./connservice.js";
 import * as DashboardService from "./dashboardservice.js";
 import * as GreetService from "./greetservice.js";
 import * as OpsService from "./opsservice.js";
-import * as ScriptsService from "./scriptsservice.js";
 import * as TunnelService from "./tunnelservice.js";
 import * as UserService from "./userservice.js";
 export {
@@ -17,7 +16,6 @@ export {
     DashboardService,
     GreetService,
     OpsService,
-    ScriptsService,
     TunnelService,
     UserService
 };
@@ -57,7 +55,6 @@ export type {
     DeleteConnectionResponse,
     DeleteEnvResponse,
     DeleteEnvironmentRequest,
-    DeleteScriptRequest,
     DeleteTunnelRequest,
     DeleteTunnelResponse,
     DeleteUserRequest,
@@ -83,23 +80,14 @@ export type {
     ImportTunnelsRequest,
     ImportTunnelsResponse,
     InteractiveInputResponse,
-    ListScriptsRequest,
     LoginRequest,
     LoginResponse,
     LogoutRequest,
     LogoutResponse,
     ProcessResponse,
-    ReadScriptRequest,
     ResizeTerminalRequest,
     RunCommandRequest,
     RunCommandResponse,
-    RunScriptRequest,
-    SaveScriptRequest,
-    Script,
-    ScriptContentResponse,
-    ScriptResponse,
-    ScriptRunProgress,
-    ScriptsResponse,
     SendInteractiveInputRequest,
     SendStreamInputRequest,
     StartBatchTaskRequest,
@@ -112,7 +100,6 @@ export type {
     StopBatchTaskResponse,
     StopDaemonRequest,
     StopInteractiveRequest,
-    StopScriptRunRequest,
     StopStreamRequest,
     StopTunnelRequest,
     TerminalOutputEvent,

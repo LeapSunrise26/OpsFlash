@@ -74,6 +74,25 @@
   flex-direction: column;
   gap: 8px;
   padding-top: 2px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.card-detail::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card-detail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.card-detail::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.card-detail::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .card-title-wrap {
@@ -337,7 +356,24 @@
   background: rgba(0, 0, 0, 0.4);
   border-radius: 8px;
   overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
 }
+
+.cmd-block::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.cmd-block::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cmd-block::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
 .cmd-text {
   font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
   font-size: 12px;

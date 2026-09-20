@@ -80,7 +80,6 @@ func main() {
 			application.NewService(opsSvc),
 			application.NewService(&server.ConnService{}),
 			application.NewService(&server.BatchService{}),
-			application.NewService(&server.ScriptsService{}),
 			application.NewService(&server.TunnelService{}),
 			application.NewService(&server.DashboardService{}),
 		},

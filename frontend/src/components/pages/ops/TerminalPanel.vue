@@ -4,17 +4,16 @@ import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { Events } from '@wailsio/runtime'
 import 'xterm/css/xterm.css' // 必须引入：否则 helper textarea 可见、光标/布局异常、无法输入
-import type { TerminalLine, LogEntry } from '../../../composables/useTerminal'
+import type { TerminalLine } from '../../../composables/useTerminal'
 import type { TerminalOutputEvent } from '../../../../bindings/opsflash/server/models'
 
-// ==================== 右栏：xterm 终端输出面板 + 操作日志面板 ====================
+// ==================== 右栏：xterm 终端输出面板 ====================
 // xterm 渲染真实终端（颜色/光标/选中复制）；输出通过 pty:output 事件流实时写入；
 // 结构化操作记录（lines）增量写入 xterm 文本；输入由 xterm onData 上抛。
 // 用 computed 取 props 的最新值（避免解构后父级替换数组导致数据过期）。
 
 const props = defineProps<{
   lines: TerminalLine[]
-  logs: LogEntry[]
   interactive: boolean
   maximized: boolean
   sessionId: number // 当前活动会话（命令）ID，事件流按此过滤；0=无会话
@@ -26,11 +25,9 @@ const emit = defineEmits([
   'resize', // (cols, rows)
   'toggle-maximize',
   'clear-lines',
-  'clear-logs',
 ])
 
 const lines = computed(() => props.lines)
-const logs = computed(() => props.logs)
 const interactive = computed(() => props.interactive)
 const maximized = computed(() => props.maximized)
 
@@ -71,8 +68,8 @@ function writeLines(newLines: TerminalLine[]) {
     const text = lineToANSI(l)
     if (text) {
       term?.write(text)
+      term?.write('\r\n')
     }
-    term?.write('\r\n')
   }
 }
 
@@ -297,34 +294,6 @@ onUnmounted(() => {
       @mousedown.stop
     >
       <button class="term-menu-item" @click="copyTerminalText">复制</button>
-    </div>
-  </div>
-
-  <!-- 操作日志面板 -->
-  <div class="log-panel">
-    <div class="panel-header">
-      <span class="panel-title">操作日志</span>
-      <button v-if="logs.length > 0" class="panel-clear" @click="emit('clear-logs')">清空</button>
-    </div>
-    <div class="log-body">
-      <div v-if="logs.length === 0" class="log-empty">暂无操作记录</div>
-      <div v-else class="log-list">
-        <div
-          v-for="(entry, idx) in logs"
-          :key="idx"
-          class="log-entry"
-          :class="{ 'log-entry-fail': !entry.success }"
-        >
-          <span class="log-time">{{ entry.time }}</span>
-          <span class="log-name">{{ entry.name }}</span>
-          <span class="log-action" :class="entry.success ? 'log-action-ok' : 'log-action-fail'">
-            {{ entry.action }}
-          </span>
-          <span class="log-status" :class="entry.success ? 'log-status-ok' : 'log-status-fail'">
-            {{ entry.success ? '\u2713' : '\u2717' }}
-          </span>
-        </div>
-      </div>
     </div>
   </div>
 </template>

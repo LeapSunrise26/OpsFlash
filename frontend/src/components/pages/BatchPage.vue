@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { BatchService, OpsService, ScriptsService } from '../../../bindings/opsflash/server'
+import { BatchService, OpsService } from '../../../bindings/opsflash/server'
 import {
   BatchTask,
   BatchRunItemProgress,
   Command,
   Environment,
-  Script,
   BatchTaskItem,
 } from '../../../bindings/opsflash/server/models'
 
@@ -17,10 +16,9 @@ const tasks = ref<BatchTask[]>([])
 const loading = ref(false)
 const error = ref('')
 
-// 命令/脚本/环境数据（步骤选择器用）
+// 命令/环境数据（步骤选择器用）
 const environments = ref<Environment[]>([])
 const allCommands = ref<Command[]>([])
-const allScripts = ref<Script[]>([])
 
 // 执行状态
 const activeRunId = ref(0)
@@ -38,19 +36,15 @@ const isEdit = ref(false)
 const form = ref<Record<string, any>>({})
 const formError = ref('')
 
-// 步骤编辑器状态：命令/脚本混合
+// 步骤编辑器状态：命令
 interface StepItem {
-  kind: 'command' | 'script'
+  kind: 'command'
   commandId: number
-  scriptId: number
   name: string
   args: string
 }
 const steps = ref<StepItem[]>([])
 
-// 执行参数弹窗
-const showParamsModal = ref(false)
-const paramsText = ref('')
 const pendingStartTask = ref<BatchTask | null>(null)
 
 const showDeleteModal = ref(false)
@@ -92,21 +86,8 @@ function toggleSelect(cmd: Command) {
   if (idx >= 0) {
     steps.value.splice(idx, 1)
   } else {
-    steps.value.push({ kind: 'command', commandId: cmd.id, scriptId: 0, name: cmd.name, args: '' })
+    steps.value.push({ kind: 'command', commandId: cmd.id, name: cmd.name, args: '' })
   }
-}
-
-function toggleScriptSelect(sc: Script) {
-  const idx = steps.value.findIndex((s) => s.kind === 'script' && s.scriptId === sc.id)
-  if (idx >= 0) {
-    steps.value.splice(idx, 1)
-  } else {
-    steps.value.push({ kind: 'script', commandId: 0, scriptId: sc.id, name: `${sc.name}.${sc.type}`, args: '' })
-  }
-}
-
-function isScriptSelected(scId: number): boolean {
-  return steps.value.some((s) => s.kind === 'script' && s.scriptId === scId)
 }
 
 // 已选步骤（有序）
@@ -156,16 +137,14 @@ async function loadTasks() {
 
 async function loadCommands() {
   try {
-    const [envRes, cmdRes, scriptRes] = await Promise.all([
+    const [envRes, cmdRes] = await Promise.all([
       OpsService.GetEnvironments({ token: props.token }),
       OpsService.GetCommands({ token: props.token, environmentId: 0 }),
-      ScriptsService.ListScripts({ token: props.token, environmentId: 0 }),
     ])
     if (envRes.success) environments.value = envRes.environments || []
     if (cmdRes.success) allCommands.value = cmdRes.commands || []
-    if (scriptRes.success) allScripts.value = scriptRes.scripts || []
   } catch (e) {
-    console.error('加载命令/脚本数据失败', e)
+    console.error('加载命令数据失败', e)
   }
 }
 
@@ -192,9 +171,8 @@ async function openEditModal(task: BatchTask) {
     const res = await BatchService.GetBatchTask({ token: props.token, id: task.id })
     if (res.success && res.items) {
       steps.value = res.items.map((it: BatchTaskItem) => ({
-        kind: it.kind === 'script' ? 'script' : 'command',
+        kind: 'command' as const,
         commandId: it.commandId || 0,
-        scriptId: it.scriptId || 0,
         name: it.name || '',
         args: it.args || '',
       }))
@@ -217,10 +195,10 @@ async function saveTask() {
     formError.value = msg
     return
   }
-  // 构造 items：仅传非零 ID（命令或脚本），兼容后端校验
+  // 构造 items：仅传命令 ID
   const items = steps.value.map((s) => ({
-    commandId: s.kind === 'command' ? s.commandId : 0,
-    scriptId: s.kind === 'script' ? s.scriptId : 0,
+    commandId: s.commandId,
+    scriptId: 0, // 向后兼容
     args: s.args || '',
   }))
   const payload = {
@@ -249,22 +227,18 @@ async function saveTask() {
 
 // ==================== 执行控制 ====================
 function startBatch(task: BatchTask) {
-  // 弹流程参数框（可选，注入脚本步骤 {{var}}）
   pendingStartTask.value = task
-  paramsText.value = ''
-  showParamsModal.value = true
+  confirmStart()
 }
 
 async function confirmStart() {
   if (!pendingStartTask.value) return
   const task = pendingStartTask.value
   pendingStartTask.value = null
-  showParamsModal.value = false
   try {
     const res = await BatchService.StartBatchTask({
       token: props.token,
       id: task.id,
-      paramsJson: paramsText.value.trim(),
     })
     if (res.success) {
       activeRunId.value = res.runId
@@ -461,7 +435,6 @@ onUnmounted(() => {
                 {{ item.status === 'success' ? '✓' : item.status === 'failed' ? '✗' : item.status === 'running' ? '⏳' : '—' }}
               </span>
               <span class="batch-result-name">{{ item.name }}</span>
-              <span v-if="item.kind === 'script'" class="batch-result-kind">脚本</span>
               <span v-if="item.status === 'failed' && item.exitCode !== 0" class="batch-result-exitcode" :class="item.exitCode === 0 ? 'exit-ok' : 'exit-fail'">
                 退出码 {{ item.exitCode }}
               </span>
@@ -541,49 +514,14 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 脚本步骤选择器 -->
-          <div class="form-group">
-            <label class="form-label">添加脚本步骤
-              <span class="form-hint-inline">脚本本地执行，参数支持 &lbrace;&lbrace;var&rbrace;&rbrace; 注入</span>
-            </label>
-            <div v-if="allScripts.length === 0" class="batch-script-empty">
-              暂无脚本，请先到「脚本库」创建
-            </div>
-            <div v-else class="batch-script-picker">
-              <label
-                v-for="sc in allScripts"
-                :key="sc.id"
-                class="batch-script-item"
-                :class="{ 'batch-script-item-checked': isScriptSelected(sc.id) }"
-              >
-                <input
-                  type="checkbox"
-                  :checked="isScriptSelected(sc.id)"
-                  @change="toggleScriptSelect(sc)"
-                />
-                <span class="batch-script-item-name">{{ sc.name }}</span>
-                <span class="batch-script-item-type" :class="`type-${sc.type}`">{{ sc.type.toUpperCase() }}</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- 已选步骤（有序，可调顺序 + 脚本参数） -->
+          <!-- 已选步骤（有序，可调顺序） -->
           <div v-if="selectedSteps.length > 0" class="form-group">
-            <label class="form-label">执行顺序（点击箭头调整，脚本步骤可填参数）</label>
+            <label class="form-label">执行顺序（点击箭头调整）</label>
             <div class="batch-selected-list">
               <div v-for="(step, idx) in selectedSteps" :key="idx" class="batch-selected-item">
                 <span class="batch-selected-idx">{{ idx + 1 }}</span>
-                <span class="batch-selected-kind" :class="step.kind === 'script' ? 'kind-script' : 'kind-command'">
-                  {{ step.kind === 'script' ? '脚本' : '命令' }}
-                </span>
+                <span class="batch-selected-kind kind-command">命令</span>
                 <span class="batch-selected-name">{{ step.name }}</span>
-                <input
-                  v-if="step.kind === 'script'"
-                  v-model="step.args"
-                  class="batch-selected-args"
-                  type="text"
-                  placeholder="参数，如 --env &lbrace;&lbrace;version&rbrace;&rbrace;"
-                />
                 <div class="batch-selected-ops">
                   <button class="batch-selected-btn" :disabled="idx === 0" @click="moveSelected(idx, -1)">↑</button>
                   <button class="batch-selected-btn" :disabled="idx === selectedSteps.length - 1" @click="moveSelected(idx, 1)">↓</button>
@@ -607,32 +545,6 @@ onUnmounted(() => {
     </div>
 
     <!-- ==================== 弹窗：执行参数（流程参数注入） ==================== -->
-    <div v-if="showParamsModal" class="modal-overlay" @click.self="showParamsModal = false">
-      <div class="modal-box modal-box-sm">
-        <div class="modal-header">
-          <h2 class="modal-title">执行 {{ pendingStartTask?.name || '' }}</h2>
-          <button class="modal-close" @click="showParamsModal = false">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">流程参数（可选，JSON 格式）</label>
-            <textarea
-              v-model="paramsText"
-              class="batch-params-textarea"
-              rows="4"
-              spellcheck="false"
-              placeholder='如：{"version":"1.2.3","host":"10.0.0.1"}'
-            ></textarea>
-            <p class="form-hint">将替换脚本步骤参数中的 &lbrace;&lbrace;key&rbrace;&rbrace; 占位符；命令步骤不注入</p>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" @click="showParamsModal = false">取消</button>
-          <button class="btn-primary" @click="confirmStart">开始执行</button>
-        </div>
-      </div>
-    </div>
-
     <!-- ==================== 弹窗：删除确认 ==================== -->
     <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
       <div class="modal-box modal-box-sm">

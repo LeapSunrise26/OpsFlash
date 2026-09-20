@@ -10,9 +10,9 @@ import CommandFormModal from './ops/CommandFormModal.vue'
 
 const props = defineProps<{ token: string }>()
 
-// ==================== 终端 / 日志 ====================
+// ==================== 终端 ====================
 const terminal = useTerminal()
-const { terminalLines, logs, terminalMaximized, addLog, appendTerminal, handleEscapeKey } = terminal
+const { terminalLines, terminalMaximized, addLog, appendTerminal, handleEscapeKey } = terminal
 
 // ==================== 数据状态 ====================
 const environments = ref<Environment[]>([])
@@ -54,6 +54,7 @@ const typeLabels: Record<string, string> = {
   'non-interactive': '非交互',
   'interactive': '交互',
   'daemon': '守护',
+  'script': '非交互',  // 兼容旧数据
 }
 
 const modeLabels: Record<string, string> = {
@@ -272,7 +273,7 @@ onUnmounted(() => {
 
 <template>
   <div class="ops-page">
-    <!-- ==================== 环境管理栏 ==================== -->
+    <!-- ==================== 环境筛选栏 ==================== -->
     <div class="env-bar">
       <div
         v-for="env in environments"
@@ -284,7 +285,6 @@ onUnmounted(() => {
         <span class="env-dot" :class="{ 'env-dot-active': env.id === activeEnvId }"></span>
         <span class="env-tag-name">{{ env.name }}</span>
       </div>
-
       <div class="env-spacer"></div>
       <span class="env-stats">{{ envStats }}</span>
     </div>
@@ -373,11 +373,10 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- ============ 右栏：终端 + 日志 ============ -->
+      <!-- ============ 右栏：终端 ============ -->
       <div class="right-col">
         <TerminalPanel
           :lines="terminalLines"
-          :logs="logs"
           :interactive="isTerminalInteractive"
           :maximized="terminalMaximized"
           :session-id="terminalSessionId"
@@ -386,7 +385,6 @@ onUnmounted(() => {
           @resize="onTerminalResize"
           @toggle-maximize="terminalMaximized = !terminalMaximized"
           @clear-lines="terminalLines = []"
-          @clear-logs="logs = []"
         />
       </div>
     </div>

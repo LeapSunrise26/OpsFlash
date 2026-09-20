@@ -1,7 +1,7 @@
 /* ==================== 运维操作页面样式（暗色玻璃态，与命令库页一致） ==================== */
 
 .batch-page {
-  height: calc(100vh - 56px - 80px);
+  height: 100%;
   min-height: 480px;
   color: var(--text);
   user-select: none;
@@ -834,22 +834,6 @@
 }
 .batch-selected-args:focus { border-color: rgba(167,139,250,0.5); }
 .batch-selected-args::placeholder { color: rgba(255,255,255,0.25); }
-
-/* 执行参数弹窗 */
-.batch-params-textarea {
-  width: 100%;
-  box-sizing: border-box;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 8px;
-  color: #e6e9f0;
-  font-size: 13px;
-  padding: 10px;
-  outline: none;
-  resize: vertical;
-  font-family: 'JetBrains Mono', Consolas, monospace;
-}
-.batch-params-textarea:focus { border-color: rgba(255,0,110,0.5); }
 
 /* 结果面板：退出码 / 类型 */
 .batch-result-kind {

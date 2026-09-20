@@ -491,11 +491,6 @@ export interface DeleteEnvironmentRequest {
     "targetId": number;
 }
 
-export interface DeleteScriptRequest {
-    "token": string;
-    "id": number;
-}
-
 export interface DeleteTunnelRequest {
     "token": string;
     "id": number;
@@ -713,14 +708,6 @@ export interface InteractiveInputResponse {
 }
 
 /**
- * 请求/响应类型
- */
-export interface ListScriptsRequest {
-    "token": string;
-    "environmentId": number;
-}
-
-/**
  * LoginRequest 登录请求
  */
 export interface LoginRequest {
@@ -759,11 +746,6 @@ export interface ProcessResponse {
     "running": boolean;
 }
 
-export interface ReadScriptRequest {
-    "token": string;
-    "id": number;
-}
-
 /**
  * ResizeTerminalRequest 调整终端尺寸请求
  */
@@ -791,89 +773,6 @@ export interface RunCommandResponse {
     "message": string;
 }
 
-export interface RunScriptRequest {
-    "token": string;
-    "id": number;
-    "args": string;
-}
-
-export interface SaveScriptRequest {
-    "token": string;
-
-    /**
-     * 0=新建
-     */
-    "id": number;
-    "name": string;
-    "type": string;
-    "content": string;
-    "environmentId": number;
-    "remark": string;
-}
-
-/**
- * Script 脚本信息
- */
-export interface Script {
-    "id": number;
-
-    /**
-     * 脚本名（不含扩展名，同环境唯一）
-     */
-    "name": string;
-
-    /**
-     * bat | ps1 | sh
-     */
-    "type": string;
-    "environmentId": number;
-
-    /**
-     * 所属环境 key（磁盘子目录名 data/scripts/{envKey}/）
-     */
-    "envKey": string;
-    "remark": string;
-
-    /**
-     * 修改时间（unix 秒）
-     */
-    "ts": number;
-    "size": number;
-}
-
-export interface ScriptContentResponse {
-    "success": boolean;
-    "name": string;
-    "type": string;
-    "content": string;
-    "message": string;
-}
-
-export interface ScriptResponse {
-    "success": boolean;
-    "script": Script | null;
-    "message": string;
-}
-
-/**
- * ScriptRunProgress 脚本执行进度（前端轮询）
- */
-export interface ScriptRunProgress {
-    "success": boolean;
-    "done": boolean;
-    "output": string;
-    "exitError": string;
-    "exitCode": number;
-    "durationMs": number;
-    "message": string;
-}
-
-export interface ScriptsResponse {
-    "success": boolean;
-    "scripts": Script[] | null;
-    "message": string;
-}
-
 export interface SendInteractiveInputRequest {
     "token": string;
     "id": number;
@@ -892,11 +791,6 @@ export interface SendStreamInputRequest {
 export interface StartBatchTaskRequest {
     "token": string;
     "id": number;
-
-    /**
-     * 流程参数 {"version":"1.2.3"}，注入脚本步骤 args 的 {{key}}
-     */
-    "paramsJson": string;
 }
 
 export interface StartBatchTaskResponse {
@@ -950,11 +844,6 @@ export interface StopDaemonRequest {
 }
 
 export interface StopInteractiveRequest {
-    "token": string;
-    "id": number;
-}
-
-export interface StopScriptRunRequest {
     "token": string;
     "id": number;
 }

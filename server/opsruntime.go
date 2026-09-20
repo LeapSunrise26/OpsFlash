@@ -1027,7 +1027,13 @@ func (s *OpsService) runSessionLines(session *streamSession, transport pty.Trans
 		session.mu.Unlock()
 
 		cleaned, err := feedShellLine(reader, line)
+		// 去除首尾空白，避免推送多余换行导致前端空行
+		cleaned = strings.TrimSpace(cleaned)
 		if cleaned != "" {
+			// 确保输出以 \r\n 结尾，否则 xterm 不换行，下一行输出会粘连
+			if !strings.HasSuffix(cleaned, "\r\n") {
+				cleaned += "\r\n"
+			}
 			session.mu.Lock()
 			session.output = append(session.output, []byte(cleaned)...)
 			session.mu.Unlock()

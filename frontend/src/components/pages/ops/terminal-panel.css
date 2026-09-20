@@ -186,107 +186,18 @@
   background: rgba(255, 45, 114, 0.15);
 }
 
-/* 日志面板 */
-.log-panel {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 180px;
-  min-height: 120px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.log-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0;
-  -webkit-user-select: text;
-  user-select: text;
-  --wails-draggable: no-drag;
-}
-.log-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: rgba(255, 255, 255, 0.2);
-  font-size: 12px;
-}
-.log-list {
-  display: flex;
-  flex-direction: column;
-}
-.log-entry {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px;
-  transition: background 0.15s ease;
-}
-.log-entry:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-.log-entry-fail {
-  background: rgba(239, 68, 68, 0.06);
-}
-.log-time {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.log-name {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.7);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.log-action {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-.log-action-ok {
-  background: rgba(52, 211, 153, 0.12);
-  color: #34D399;
-}
-.log-action-fail {
-  background: rgba(239, 68, 68, 0.12);
-  color: #EF4444;
-}
-.log-status {
-  margin-left: auto;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-.log-status-ok {
-  color: #34D399;
-}
-.log-status-fail {
-  color: #EF4444;
-}
-
-/* ==================== 滚动条（终端/日志） ==================== */
-.terminal-body::-webkit-scrollbar,
-.log-body::-webkit-scrollbar {
+/* ==================== 滚动条 ==================== */
+.terminal-body::-webkit-scrollbar {
   width: 6px;
 }
-.terminal-body::-webkit-scrollbar-track,
-.log-body::-webkit-scrollbar-track {
+.terminal-body::-webkit-scrollbar-track {
   background: transparent;
 }
-.terminal-body::-webkit-scrollbar-thumb,
-.log-body::-webkit-scrollbar-thumb {
+.terminal-body::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
 }
-.terminal-body::-webkit-scrollbar-thumb:hover,
-.log-body::-webkit-scrollbar-thumb:hover {
+.terminal-body::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
