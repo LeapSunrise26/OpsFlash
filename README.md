@@ -116,10 +116,16 @@ task build:server   # 或 task run:server
 
 ## 软件截图
 
-连接管理
+概览
+![opsflash03](./docs/images/opsflash03.png)
+脚本库
+![opsflash04](./docs/images/opsflash04.png)
+连接
 ![opsflash01](./docs/images/opsflash01.png)
-隧道管理
+隧道
 ![opsflash02](./docs/images/opsflash02.png)
+记录
+![opsflash05](./docs/images/opsflash05.png)
 
 ## 开源协议
 
