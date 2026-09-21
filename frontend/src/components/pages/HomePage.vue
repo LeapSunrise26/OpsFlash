@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { DashboardService } from '../../../bindings/opsflash/server'
-import { Browser } from '@wailsio/runtime'
 
 const props = defineProps<{ token: string; username?: string }>()
 
@@ -38,10 +37,11 @@ const topExecuted = ref<TopExecutedItem[]>([])
 const recentExecutions = ref<ExecutionLog[]>([])
 const recentFailed = ref<ExecutionLog[]>([])
 const loading = ref(true)
+const refreshing = ref(false)
 
 // --- 加载数据 ---
 async function loadDashboard() {
-  loading.value = true
+  if (!loading.value) refreshing.value = true
   try {
     const res: any = await DashboardService.GetDashboardStats(props.token)
     if (res) {
@@ -57,6 +57,7 @@ async function loadDashboard() {
     console.error('加载仪表盘数据失败', e)
   } finally {
     loading.value = false
+    refreshing.value = false
   }
 }
 
@@ -99,10 +100,6 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(ms / 60000)
   const seconds = Math.floor((ms % 60000) / 1000)
   return `${minutes}m ${seconds}s`
-}
-
-function openLink(url: string) {
-  Browser.OpenURL(url)
 }
 
 function goToPage(key: string) {
@@ -260,15 +257,6 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-
-    <!-- Footer -->
-    <div class="footer">
-      <span>OpsFlash v0.5.1</span>
-      <span class="footer-sep">|</span>
-      <a href="#" @click.prevent="openLink('https://gitee.com/LeapSunrise/OpsFlash')" class="footer-link">Gitee</a>
-      <span class="footer-sep">|</span>
-      <a href="#" @click.prevent="openLink('https://github.com/LeapSunrise26/OpsFlash')" class="footer-link">GitHub</a>
-    </div>
   </div>
 </template>
 
@@ -360,13 +348,4 @@ onUnmounted(() => {
 .status-running { background: rgba(96,165,250,0.15); color: #60A5FA; }
 .status-timeout { background: rgba(251,191,36,0.15); color: #FBBF24; }
 .status-stopped { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); }
-
-/* Footer */
-.footer {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 16px 0; font-size: 12px; color: rgba(255,255,255,0.3);
-}
-.footer-sep { color: rgba(255,255,255,0.15); }
-.footer-link { color: rgba(255,255,255,0.4); text-decoration: none; transition: color 0.2s ease; }
-.footer-link:hover { color: #FF77B0; }
 </style>

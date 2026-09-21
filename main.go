@@ -2,12 +2,14 @@ package main
 
 import (
 	"embed"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -17,10 +19,6 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-const (
-	AppName = "OpsFlash"
-	Version = "0.5.0"
-)
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
 // Any files in the frontend/dist folder will be embedded into the binary and
@@ -60,7 +58,7 @@ func main() {
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running an macOS.
 	app := application.New(application.Options{
-		Name:        AppName,
+		Name:        server.AppName,
 		Description: "OpsFlash 运维工具",
 		// 单实例：Windows 命名 Mutex 互斥 + 隐藏窗口 WM_COPYDATA 通知。
 		// 第二个实例在 application.New 内部即被拦截并 os.Exit 退出（不会走到下方
@@ -115,7 +113,7 @@ func main() {
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
 	window = app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title: AppName,
+		Title: server.AppName,
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:  1060,
 		Height: 700,
@@ -123,6 +121,21 @@ func main() {
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTranslucent,
 			TitleBar:                application.MacTitleBarHiddenInset,
+		},
+		Windows: application.WindowsWindow{
+			Theme: application.Dark,
+			CustomTheme: application.ThemeSettings{
+				DarkModeActive: &application.WindowTheme{
+					TitleBarColour:  application.NewRGBPtr(6, 7, 15),
+					TitleTextColour: application.NewRGBPtr(200, 200, 200),
+					BorderColour:    application.NewRGBPtr(6, 7, 15),
+				},
+				DarkModeInactive: &application.WindowTheme{
+					TitleBarColour:  application.NewRGBPtr(6, 7, 15),
+					TitleTextColour: application.NewRGBPtr(150, 150, 150),
+					BorderColour:    application.NewRGBPtr(6, 7, 15),
+				},
+			},
 		},
 		BackgroundColour:   application.NewRGB(6, 7, 15),
 		URL:                "/",
@@ -229,6 +242,34 @@ func setupTray(app *application.App, window application.Window) {
 	menu.Add("显示主页面").OnClick(func(*application.Context) {
 		window.Show()
 		window.Focus()
+	})
+	menu.AddSeparator()
+	menu.Add("关于").OnClick(func(*application.Context) {
+		window.Show()
+		window.Focus()
+
+		// 读取 about.html 模板
+		tplBytes, err := assets.ReadFile("frontend/dist/about.html")
+		if err != nil {
+			slog.Warn("读取 about.html 失败", "error", err)
+			return
+		}
+		html := string(tplBytes)
+
+		// 读取 logo.png 转 base64
+		if logoBytes, err := assets.ReadFile("frontend/dist/logo.png"); err == nil {
+			logoBase64 := "data:image/png;base64," + base64.StdEncoding.EncodeToString(logoBytes)
+			html = strings.Replace(html, "{{LOGO_BASE64}}", logoBase64, 1)
+		}
+		html = strings.Replace(html, "{{VERSION}}", server.AppVersion, 1)
+
+		app.Window.NewWithOptions(application.WebviewWindowOptions{
+			Title:            "关于 OpsFlash",
+			Width:            420,
+			Height:           360,
+			BackgroundColour: application.NewRGB(6, 7, 15),
+			HTML:             html,
+		}).Show()
 	})
 	menu.AddSeparator()
 	menu.Add("退出").OnClick(func(*application.Context) {

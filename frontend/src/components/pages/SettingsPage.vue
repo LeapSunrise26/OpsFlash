@@ -1,12 +1,23 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { OpsService } from '../../../bindings/opsflash/server'
+import { OpsService, DashboardService } from '../../../bindings/opsflash/server'
+import { Browser } from '@wailsio/runtime'
 import UserPage from './UserPage.vue'
 
 const props = defineProps<{ token: string }>()
 
 // --- 标签页 ---
-const activeTab = ref<'users' | 'environments'>('users')
+const activeTab = ref<'users' | 'environments' | 'about'>('users')
+
+// --- 版本号 ---
+const appVersion = ref('')
+onMounted(async () => {
+  try { appVersion.value = await DashboardService.GetVersion() } catch {}
+})
+
+function openLink(url: string) {
+  Browser.OpenURL(url)
+}
 
 // --- 环境管理 ---
 interface Environment { id: number; name: string; key: string; sortOrder: number }
@@ -98,6 +109,10 @@ onMounted(loadEnvironments)
         <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         环境管理
       </button>
+      <button class="settings-nav-item" :class="{ active: activeTab === 'about' }" @click="activeTab = 'about'">
+        <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="12" y1="16" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="8" x2="12.01" y2="8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        关于
+      </button>
     </div>
     <div class="settings-main">
       <!-- 用户管理 -->
@@ -178,262 +193,38 @@ onMounted(loadEnvironments)
           </div>
         </div>
       </div>
+      <!-- 关于 -->
+      <div v-if="activeTab === 'about'" class="settings-content">
+        <div class="about-page">
+          <img src="/logo.png" class="about-logo" alt="OpsFlash" />
+          <h1 class="about-name">OpsFlash</h1>
+          <p class="about-slogan">轻量级运维极速引擎</p>
+          <div class="about-version">{{ appVersion }}</div>
+          <div class="about-links">
+            <a href="#" @click.prevent="openLink('https://gitee.com/LeapSunrise/OpsFlash')" class="about-link">
+              <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm5 7h-2v-3.5c0-.83-.67-1.5-1.5-1.5S10 12.67 10 13.5V17H8v-6h2v.81c.47-.75 1.31-1.31 2.5-1.31 1.93 0 2.5 1.32 2.5 3.09V17z" fill="currentColor"/></svg>
+              Gitee
+            </a>
+            <a href="#" @click.prevent="openLink('https://github.com/LeapSunrise26/OpsFlash')" class="about-link">
+              <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z" fill="currentColor"/></svg>
+              GitHub
+            </a>
+          </div>
+          <div class="about-tech">
+            <h3 class="about-tech-title">使用技术</h3>
+            <div class="about-tech-grid">
+              <div class="about-tech-item"><span class="tech-label">桌面框架</span><span class="tech-value">Wails v3</span></div>
+              <div class="about-tech-item"><span class="tech-label">后端语言</span><span class="tech-value">Go 1.25</span></div>
+              <div class="about-tech-item"><span class="tech-label">前端框架</span><span class="tech-value">Vue 3 + TypeScript</span></div>
+              <div class="about-tech-item"><span class="tech-label">构建工具</span><span class="tech-value">Vite 8</span></div>
+              <div class="about-tech-item"><span class="tech-label">数据库</span><span class="tech-value">SQLite (modernc.org)</span></div>
+              <div class="about-tech-item"><span class="tech-label">终端渲染</span><span class="tech-value">xterm.js</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
-<style scoped>
-.settings-page {
-  display: flex;
-  height: 100%;
-  gap: 0;
-}
-
-.settings-sidebar {
-  width: 200px;
-  flex-shrink: 0;
-  background: #0d1117;
-  border-right: 1px solid #21262d;
-  padding: 16px 12px;
-}
-
-.settings-sidebar-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #FF77B0;
-  padding: 0 12px 16px;
-  border-bottom: 1px solid #21262d;
-  margin-bottom: 8px;
-}
-
-.settings-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: rgba(255,255,255,0.65);
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
-
-.settings-nav-item:hover {
-  background: rgba(255,255,255,0.06);
-  color: #fff;
-}
-
-.settings-nav-item.active {
-  background: rgba(255,0,110,0.12);
-  color: #FF77B0;
-  font-weight: 600;
-}
-
-.settings-main {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  padding: 24px 32px;
-}
-
-.settings-content {
-  height: 100%;
-}
-
-/* --- 环境管理 --- */
-.env-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.env-count {
-  color: rgba(255,255,255,0.5);
-  font-size: 13px;
-}
-
-.btn-add {
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: none;
-  background: #FF0050;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-add:hover {
-  background: #E60047;
-}
-
-.env-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.env-card {
-  background: #161b22;
-  border: 1px solid #21262d;
-  border-radius: 10px;
-  padding: 14px 18px;
-}
-
-.env-card-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.env-card-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #e6edf3;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.env-card-key {
-  font-size: 12px;
-  color: rgba(255,255,255,0.4);
-  font-weight: 400;
-}
-
-.env-card-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-edit, .btn-delete {
-  padding: 6px 12px;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  background: transparent;
-  color: rgba(255,255,255,0.65);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-edit:hover { border-color: #FF77B0; color: #FF77B0; }
-.btn-delete:hover { border-color: #f85149; color: #f85149; }
-
-/* --- 弹窗 --- */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-box {
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 14px;
-  width: 420px;
-  max-width: 90vw;
-}
-
-.modal-box-sm { width: 380px; }
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 18px 22px;
-  border-bottom: 1px solid #21262d;
-}
-
-.modal-title { font-size: 16px; font-weight: 700; color: #e6edf3; }
-.modal-title-warning { color: #f0883e; }
-
-.modal-close {
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.5);
-  font-size: 22px;
-  cursor: pointer;
-  padding: 0 4px;
-}
-
-.modal-body { padding: 20px 22px; }
-
-.form-group { margin-bottom: 14px; }
-.form-label { display: block; font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 6px; }
-
-.form-input, .form-select {
-  width: 100%;
-  padding: 10px 12px;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 8px;
-  color: #e6edf3;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-.form-input:focus, .form-select:focus {
-  outline: none;
-  border-color: #FF0050;
-  box-shadow: 0 0 0 3px rgba(255,0,80,0.15);
-}
-
-.form-error { color: #f85149; font-size: 13px; margin-top: 6px; }
-.confirm-text { color: #e6edf3; font-size: 14px; margin-bottom: 8px; }
-.confirm-hint { color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 8px; }
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 22px;
-  border-top: 1px solid #21262d;
-}
-
-.btn-cancel {
-  padding: 8px 18px;
-  border: 1px solid #30363d;
-  border-radius: 8px;
-  background: transparent;
-  color: rgba(255,255,255,0.65);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.btn-primary {
-  padding: 8px 22px;
-  border: none;
-  border-radius: 8px;
-  background: #FF0050;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-primary:hover { background: #E60047; }
-
-.btn-danger {
-  padding: 8px 22px;
-  border: none;
-  border-radius: 8px;
-  background: #da3633;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-danger:hover { background: #b62324; }
-</style>
+<style scoped src="./settings-page.css"></style>

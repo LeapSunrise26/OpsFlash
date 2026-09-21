@@ -34,3 +34,10 @@ export function GetDashboardStats(token: string): $CancellablePromise<$models.Da
 export function GetExecutionLogs(req: $models.GetExecutionLogsRequest): $CancellablePromise<$models.ExecutionLogsResponse> {
     return $Call.ByID(3732183115, req);
 }
+
+/**
+ * GetVersion 返回应用版本号
+ */
+export function GetVersion(): $CancellablePromise<string> {
+    return $Call.ByID(851399622);
+}

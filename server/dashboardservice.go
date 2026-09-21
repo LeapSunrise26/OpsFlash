@@ -408,3 +408,8 @@ func (s *DashboardService) ClearExecutionLogs(req ClearExecutionLogsRequest) Cle
 		Count:   deleted,
 	}
 }
+
+// GetVersion 返回应用版本号
+func (d *DashboardService) GetVersion() string {
+	return AppVersion
+}
